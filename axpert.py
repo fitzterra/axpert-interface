@@ -30,7 +30,7 @@ class Axpert:
     # at a time since sending more than 8 bytes in one go causing
     # things to break. For this reason, we break the command up in 8
     # byte chunks with a slight delay between transmissions.
-    # These two clas constant defines the chunk size and delay between chunk
+    # These two class constant defines the chunk size and delay between chunk
     # transmissions.
     TX_CHUNK_SZ = 8
     TX_DELAY = 0.35  # 350ms seems to work well.
@@ -114,6 +114,19 @@ class Axpert:
         method will calculate the CRC for the given value which may be a
         command to be sent, or a response received.
 
+        Note that there are two "reserved" characters used in the Axpert comms
+        protocol:
+            * `\r` (0x0d) - used to signal end of the command string
+            * '(' (0x28)  - used to signal the start of a response.
+
+        When these characters appears in the calculated CRC it could cause
+        parsing issues. It seems the way these inverters deals with these are
+        to simply increment the byte by, i.e. 0x0d becomes 0x0e and 0x28
+        becomes 0x29.
+
+        This function will apply these rules to ensure the inverter and this
+        CRC calculations match up.
+
         Args:
             val (str|bytes): A string or bytes string for which the CRC is to
                 be calcualted.
@@ -139,7 +152,9 @@ class Axpert:
         if len(crc_h) % 2:
             crc_h = f"0{crc_h}"
 
-        return unhexlify(crc_h)
+        # Return the crc after incrementing each of the reserved bytes by one
+        # if they are present.
+        return unhexlify(crc_h).replace(b'\x0d', b'\x0e').replace(b'\x28', b'\x29')
 
 
     def sendCommand(self, command, device):
@@ -152,13 +167,6 @@ class Axpert:
             cmd_b = command.encode('utf-8')
             # Calculate the CRC as a bytes string
             crc_b = self._calcCRC(cmd_b)
-            # There is an issue in the Axpert firmware where it mistakenly
-            # calculates the POP02 CR as 0xE20B, instead of the correct
-            # value of 0xE20A. We correct the crc here for this command
-            if command == 'POP02':
-                # TODO: Test this... looks like there may be an additional
-                # b'\x0d' to be added here in addition to the two bytes below
-                crc_b = b'\xe2\x0b'
 
             # Now create the final command to send to the device consisting of
             # the command name, followed by the crc, followed by a CR ('\r')
