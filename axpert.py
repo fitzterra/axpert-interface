@@ -25,6 +25,16 @@ class Axpert:
     """
     Axpert controller class
     """
+
+    # It seems the receive buffer on the Inverter only holds 8 bytes
+    # at a time since sending more than 8 bytes in one go causing
+    # things to break. For this reason, we break the command up in 8
+    # byte chunks with a slight delay between transmissions.
+    # These two clas constant defines the chunk size and delay between chunk
+    # transmissions.
+    TX_CHUNK_SZ = 8
+    TX_DELAY = 0.35  # 350ms seems to work well.
+
     def __init__(self, connection):
         """
         Instance instantiation
@@ -158,35 +168,37 @@ class Axpert:
             signal.signal(signal.SIGALRM, self._timeoutAlarm)
             signal.alarm(DEVICE_TIMEOUT)
 
-            # TODO: Seems we can only send 8 bytes at a time (why?). Anyway,
-            #   improve this to send max 8 bytes at a time in a loop until
-            #   all data has been sent. Also look at the node implementation to
-            #   see if it also only sends 8 bytes at a time.
-            if len (command_crc) < 9:
-                time.sleep(0.35)
-                os.write(device, command_crc)
-            else:
-                cmd1 = command_crc[:8]
-                cmd2 = command_crc[8:]
-                time.sleep (0.35)
-                os.write(device, cmd1)
-                time.sleep (0.35)
-                os.write(device, cmd2)
-                time.sleep (0.25)
+            # We write the command in chunks with a delay between chunks. See
+            # comment above for TX_CHUNK_SZ and TX_DELAY
+            for offset in range(0, len(command_crc), self.TX_CHUNK_SZ):
+                time.sleep(self.TX_DELAY)
+                chunk = command_crc[offset:offset+self.TX_CHUNK_SZ]
+                logger.debug(
+                    "Writing max %s bytes to device: %s", self.TX_CHUNK_SZ, chunk
+                )
+                os.write(device, chunk)
 
             response = b""
 
-            # Read the rsponse until we receive a '\r'
-            # TODO: Make this better to loop until '\r' is in response.
+            # Read the response until we receive a '\r'
+            # NOTE: It seems the TX buffer on the Inverter is also only 8 bytes
+            #       in size, so we only get 8 bytes on a read at a time
+            #       (although we ask for up to 256 bytes). What this also does
+            #       is that the last read we do will be up to 8 bytes, but the
+            #       last bytes after the \r will be \x00 bytes. We will remove
+            #       these trailing \x00 bytes when we see the \r
             while True:
                 time.sleep (0.15)
                 r = os.read(device, 256)
+                logger.debug("Read from device: %s", r)
                 response += r
                 if b'\r' in r:
+                    # Strip any trailing \x00 bytes - see comment above.
+                    response = response.rstrip(b'\x00')
                     break
 
         except Exception as exc:
-            print(f"Error reading inverter...: {exc}\nResponse : {response.decode('utf-8')}")
+            logger.exception("Error reading inverter.")
             if self.connection == "serial":
                 # Problem with some USB-Serial adapters, they are sometimes
                 # disconnecting, 20 second helps to reconnect at same ttySxx
