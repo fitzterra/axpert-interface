@@ -8,9 +8,14 @@ Interfacing to Axpert type inverters...
 import os
 import time
 import signal
+import logging
 from binascii import unhexlify
 
 import crcmod
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(encoding='utf-8', level=logging.INFO)
 
 # A constant for how long we wait (in seconds) for sending/receiving from the
 # device to complete before we fail with a timeout
@@ -40,7 +45,7 @@ class Axpert:
         self.mode0 = self.mode1 = -1
 
         # TODO: what does this do?
-        self.load = 0
+        #self.load = 0
 
         # TODO: what does this do?
         self.parrallel_num = 0
@@ -53,8 +58,11 @@ class Axpert:
         # package and the predefined xmodem definition.
         self._crc = crcmod.predefined.mkCrcFun('xmodem')
 
-        # Open hidraw ports
-        self._openUSBPorts()
+        if connection =='hid':
+            # Open hidraw ports
+            self._openUSBPorts()
+        else:
+            self._openSerialPort()
 
     def _openUSBPorts(self):
         """
@@ -67,6 +75,7 @@ class Axpert:
         Raises:
             RuntimeError if either port can not be opened
         """
+        logger.info("Opening HIDRAW port(s).")
         # We open the port in raw and non-blocking mode
         flags = os.O_RDWR | os.O_NONBLOCK
         try:
@@ -74,6 +83,7 @@ class Axpert:
             for port in [0, 1]:
                 # Open the port and assign the open fd to self.usb{port}
                 setattr(self, f"usb{port}", os.open(f'/dev/hidraw{port}', flags))
+                logger.debug("Port /dev/hidraw%d opened", port)
         except Exception as exc:
             raise RuntimeError('Error opening hidraw usb port') from exc
 
