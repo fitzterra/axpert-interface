@@ -15,7 +15,7 @@ import crcmod
 
 # Set up logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(encoding='utf-8', level=logging.INFO)
+logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
 
 # A constant for how long we wait (in seconds) for sending/receiving from the
 # device to complete before we fail with a timeout
@@ -210,8 +210,7 @@ class Axpert:
         # Reset the timeout alarm
         signal.alarm(0)
 
-        #TODO: Make this log the result instead of printing
-        print(f"{command} : {response.decode('utf-8')}")
+        logger.debug("Command: %s | Response: %s", command, response)
         return response
 
     #pylint: disable=too-many-statements,too-many-branches
