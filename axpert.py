@@ -96,6 +96,42 @@ class Axpert:
         will then handle as a timeout.
         """
 
+    def _calcCRC(self, val):
+        """
+        Calculates the CRC for the given value.
+
+        The Axpert Inverter uses xmodem CRC for commands and response and this
+        method will calculate the CRC for the given value which may be a
+        command to be sent, or a response received.
+
+        Args:
+            val (str|bytes): A string or bytes string for which the CRC is to
+                be calcualted.
+
+        Returns:
+            A bytes string as the CRC for the given input val.
+        """
+        # Ensure that val is a bytes string
+        val_b = val.encode('utf-8') if isinstance(val, str) else val
+        assert isinstance(val_b, bytes),\
+            f"A str or bytes str is expected for _calcCRC, not {type(val)}"
+
+        # Calculate the CRC as a bytes string:
+        # 1. Use the self._crc() method to calculate the xmodem CRC for the
+        #    command in bytes array format as an integer.
+        # 2. Convert this crc integer into a hex string, but then strip off
+        #    the '0x' prefix added by hex(), and then ensuring the length is a
+        #    multiple of 2
+        # 3. Convert this hex string into a bytes string using the unhexlify
+        #    function
+        crc_h = hex(self._crc(val_b))[2:]
+        # This must be an even number of bytes, or else we prefix a 0
+        if len(crc_h) % 2:
+            crc_h = f"0{crc_h}"
+
+        return unhexlify(crc_h)
+
+
     def sendCommand(self, command, device):
         """
         ????????????????
@@ -104,14 +140,8 @@ class Axpert:
             # Encode the command string to a byte string. We need this to
             # calculate the CRC and sending to the device
             cmd_b = command.encode('utf-8')
-            # Calculate the CRC as a bytes string:
-            # 1. Use the self._crc() method to calculate the xmodem CRC for the
-            #    command in bytes array format as an integer.
-            # 2. Convert this crc integer into a hex string, but then strip off
-            #    the '0x' prefix added by hex()
-            # 3. Convert this hex string into a bytes string using the unhexlify
-            #    function
-            crc_b = unhexlify(hex(self._crc(cmd_b))[2:])
+            # Calculate the CRC as a bytes string
+            crc_b = self._calcCRC(cmd_b)
             # There is an issue in the Axpert firmware where it mistakenly
             # calculates the POP02 CR as 0xE20B, instead of the correct
             # value of 0xE20A. We correct the crc here for this command
