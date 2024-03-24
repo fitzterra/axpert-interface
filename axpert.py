@@ -134,7 +134,7 @@ class Axpert:
                 os.write(device, cmd2)
                 time.sleep (0.25)
 
-            response = ""
+            response = b""
 
             # Read the rsponse until we receive a '\r'
             # TODO: Make this better to loop until '\r' is in response.
@@ -142,11 +142,11 @@ class Axpert:
                 time.sleep (0.15)
                 r = os.read(device, 256)
                 response += r
-                if '\r' in r:
+                if b'\r' in r:
                     break
 
         except Exception as exc:
-            print(f"Error reading inverter...: {exc}\nResponse : {response}")
+            print(f"Error reading inverter...: {exc}\nResponse : {response.decode('utf-8')}")
             if self.connection == "serial":
                 # Problem with some USB-Serial adapters, they are sometimes
                 # disconnecting, 20 second helps to reconnect at same ttySxx
@@ -159,7 +159,7 @@ class Axpert:
         signal.alarm(0)
 
         #TODO: Make this log the result instead of printing
-        print(f"{command} : {response}")
+        print(f"{command} : {response.decode('utf-8')}")
         return response
 
     #pylint: disable=too-many-statements,too-many-branches
