@@ -300,10 +300,27 @@ class Axpert:
     type=click.Choice(QUERIES),
     help="The query to issue.",
 )
-def cli(device, query):
+@click.option(
+    "-L",
+    "--loglevel",
+    default="info",
+    type=click.Choice(
+        # We get all the available level names where the level is greater than
+        # 0 (NOTSET) and convert them to lowercase names as the level choices
+        [n.lower() for n, l in logging.getLevelNamesMapping().items() if l > 0]
+    ),
+    show_default=True,
+    help="Set the loglevel.",
+)
+def cli(device, query, loglevel):
     """
     Main CLI interface
     """
+    # Set the log level before anything else. We get the level name as a
+    # lowercase string which we then uppercase and use as lookup in the dict of
+    # level names and values returned
+    logger.setLevel(logging.getLevelNamesMapping()[loglevel.upper()])
+
     logger.info("Instantiating inverter device...")
     inv = Axpert(device=device)
     inv.open()
