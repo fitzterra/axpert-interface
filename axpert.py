@@ -47,6 +47,7 @@ QUERIES = [
     "QPGS0",
     "QBV",
 ]
+
 class Axpert:
     """
     Axpert controller class
@@ -115,11 +116,12 @@ class Axpert:
     def _timeoutAlarm(self, signum, _):
         """
         Method that will be called when the timeout alarm is triggered for
-        sending an reading a command from the inverted.
+        sending a command and reading it's response from the inverted.
 
         All we do here is raise a TimeoutError which the sendCommand method
         will then handle as a timeout.
         """
+        raise TimeoutError("Timeout waiting for inverter response")
 
     def _calcCRC(self, val):
         """
