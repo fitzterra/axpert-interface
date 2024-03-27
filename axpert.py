@@ -261,14 +261,22 @@ class Axpert:
         # into bytes string returns int, so we use ord here to make sure we
         # compare ints to ints.
         if not response[0] == ord(b'('):
-            logger.error("Response [%s] does not start with expected '('", response)
+            logger.error(
+                "Response [%s] does not start with expected '('",
+                response
+            )
         response = response[1:]
 
         return response
 
 
+    def query(self, qry):
         """
+        Sends a query command to the inverter and returns the result.
 
+        ???
+        """
+        return self._sendCommand(qry)
 
 
 @click.command()
@@ -288,7 +296,7 @@ def cli(device, query):
     inv = Axpert(device=device)
     inv.open()
     if query:
-        print(inv._sendCommand(query))
+        print(inv.query(query))
     inv.close()
 
 if __name__ == "__main__":
