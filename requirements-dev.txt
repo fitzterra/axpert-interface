@@ -4,6 +4,6 @@
 ipython
 ipdb
 pylint
-black
+black==24.3.0
 
 -r requirements.txt

@@ -1,3 +1,2 @@
-pyserial
-crcmod
-click
+click==8.1.7
+crcmod==1.7
