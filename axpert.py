@@ -17,6 +17,11 @@ import crcmod
 logger = logging.getLogger(__name__)
 logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
 
+# The default HID port to connect to. Normally we will have a udev rule that
+# will create a symlink to the Axpert device's HID port when it is plugged in.
+# This can then be used as default port.
+DEFAULT_DEV = '/dev/hidAxpert'
+
 # A constant for how long we wait (in seconds) for sending/receiving from the
 # device to complete before we fail with a timeout
 DEVICE_TIMEOUT = 10
@@ -35,67 +40,56 @@ class Axpert:
     TX_CHUNK_SZ = 8
     TX_DELAY = 0.35  # 350ms seems to work well.
 
-    def __init__(self, connection):
+    def __init__(self, device=DEFAULT_DEV):
         """
         Instance instantiation
 
         Args:
-            connection (str): One of "serial" or "hid" to indicate the
-                connection type
+            device (str): The HID device we will connect to. This will usually
+                be a device entry in '/dev/` to which this process should have
+                read and write access.
 
         Raises:
-            AssertionError if any args are invalid
+            RuntimeError if not able to open `self.device`
+            Other possible errors.
         """
-        # Validate the connection arg
-        assert connection in ('serial', 'hid'),\
-            f"Invalid connection '{connection}'. Should be 'serial' or 'hid'"
-        self.connection = connection
-
-        # TODO: What does these do?
-        self.mode0 = self.mode1 = -1
-
-        # TODO: what does this do?
-        #self.load = 0
-
-        # TODO: what does this do?
-        self.parrallel_num = 0
-
-        # Will be set by _openUSBPorts as open fd's to the raw HID ports
-        self.usb0 = self.usb1 = None
+        self.device = device
+        self.port = None
 
         # The CRC function to be used for Axpert command uses is of the
         # CRC-16/XMODEM variant. Here we create a CRC function using the crcmod
         # package and the predefined xmodem definition.
         self._crc = crcmod.predefined.mkCrcFun('xmodem')
 
-        if connection =='hid':
-            # Open hidraw ports
-            self._openUSBPorts()
-        else:
-            self._openSerialPort()
-
-    def _openUSBPorts(self):
+    def open(self):
         """
-        Tries to open the hidraw{0,1} ports and assign the open ports to
-        `self.usb0` and `self.usb1` respectively.
+        Tries to open the HID device defined by `self.device` and assign this as
+        an open file descriptor to `self.port`.
 
         Side Effect:
-            Sets `self.usb0` and `self.usb1`
+            Sets `self.port`
 
         Raises:
-            RuntimeError if either port can not be opened
+            RuntimeError if device can not be opened
         """
-        logger.info("Opening HIDRAW port(s).")
+        logger.info("Opening HIDRAW device: %s.", self.device)
         # We open the port in raw and non-blocking mode
         flags = os.O_RDWR | os.O_NONBLOCK
         try:
-            # The hidraw and usb port designators we want
-            for port in [0, 1]:
-                # Open the port and assign the open fd to self.usb{port}
-                setattr(self, f"usb{port}", os.open(f'/dev/hidraw{port}', flags))
-                logger.debug("Port /dev/hidraw%d opened", port)
+            self.port = os.open(self.device, flags)
+            logger.debug("Device %s opened", self.device)
         except Exception as exc:
-            raise RuntimeError('Error opening hidraw usb port') from exc
+            raise RuntimeError(f"Error opening hid device {self.device}") from exc
+
+    def close(self):
+        """
+        Closes the port if it is open.
+
+        Call this before exiting the program.
+        """
+        if self.port:
+            logger.info("Closing device.")
+            os.close(self.port)
 
     def _timeoutAlarm(self, signum, _):
         """
@@ -184,7 +178,7 @@ class Axpert:
                 logger.debug(
                     "Writing max %s bytes to device: %s", self.TX_CHUNK_SZ, chunk
                 )
-                os.write(device, chunk)
+                os.write(self.port, chunk)
 
             response = b""
 
@@ -197,7 +191,7 @@ class Axpert:
             #       these trailing \x00 bytes when we see the \r
             while True:
                 time.sleep (0.15)
-                r = os.read(device, 256)
+                r = os.read(self.port, 256)
                 logger.debug("Read from device: %s", r)
                 response += r
                 if b'\r' in r:
