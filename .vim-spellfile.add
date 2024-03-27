@@ -81,3 +81,9 @@ LineMode
 BatteryMode
 FaultMode
 PowerSavingMode
+crc
+udev
+calcCRC
+unhexlify
+ints
+ord
