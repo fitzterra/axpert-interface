@@ -12,6 +12,7 @@ import logging
 from binascii import unhexlify
 
 import crcmod
+import click
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -26,6 +27,26 @@ DEFAULT_DEV = '/dev/hidAxpert'
 # device to complete before we fail with a timeout
 DEVICE_TIMEOUT = 10
 
+# Queries allowed
+QUERIES = [
+    "Q1",
+    "QPI",
+    "QID",
+    "QVFW",
+    "QVFW2",
+    "QFLAG",
+    "QPIGS",
+    "QMOD",
+    "QPIWS",
+    "QDI",
+    "QMCHGCR",
+    "QMUCHGCR",
+    "QBOOT",
+    "QOPM",
+    "QPIRI",
+    "QPGS0",
+    "QBV",
+]
 class Axpert:
     """
     Axpert controller class
@@ -123,7 +144,7 @@ class Axpert:
 
         Args:
             val (str|bytes): A string or bytes string for which the CRC is to
-                be calcualted.
+                be calculated.
 
         Returns:
             A bytes string as the CRC for the given input val.
@@ -150,10 +171,17 @@ class Axpert:
         # if they are present.
         return unhexlify(crc_h).replace(b'\x0d', b'\x0e').replace(b'\x28', b'\x29')
 
-
-    def sendCommand(self, command, device):
+    def _sendCommand(self, command):
         """
-        ????????????????
+        Sends the command to the inverter, and returns the response received.
+
+        Args:
+            command (str): The command to send.
+
+        Returns:
+            The response after removing the leading '(', validating and
+            removing the CRC and trailing '\r' if all is well.
+            None if an error occurred, with the error info logged.
         """
         try:
             # Encode the command string to a byte string. We need this to
@@ -199,20 +227,41 @@ class Axpert:
                     response = response.rstrip(b'\x00')
                     break
 
-        except Exception as exc:
+        except Exception:
             logger.exception("Error reading inverter.")
-            if self.connection == "serial":
-                # Problem with some USB-Serial adapters, they are sometimes
-                # disconnecting, 20 second helps to reconnect at same ttySxx
-                time.sleep(20)
-                ser.open()
-            time.sleep(0.5)
-            return ''
+            return None
 
         # Reset the timeout alarm
         signal.alarm(0)
 
         logger.debug("Command: %s | Response: %s", command, response)
+
+        # For sanity, validate that the last byte in the response is '\r' and
+        # if so, trim it. Indexes into bytes string returns int, so we use ord
+        # here to make sure we compare ints to ints.
+        if response[-1] != ord(b'\r'):
+            logger.error("Response [%s] does not end with '\\r'", response)
+            return None
+        response = response[:-1]
+
+        # Validate that the CRC matches. The last 2 bytes are the CRC for the
+        # response, which is calculated from the full response except the last
+        # 2 bytes.
+        crc = self._calcCRC(response[:-2])
+        if not response[-2:] == crc:
+            logger.error("Response [%s] CRC does not match expected CRC: [%s]",
+                         response, crc)
+            return None
+        # Strip the CRC
+        response = response[:-2]
+
+        # All responses starts with a '('. Validate and then strip it. Indexes
+        # into bytes string returns int, so we use ord here to make sure we
+        # compare ints to ints.
+        if not response[0] == ord(b'('):
+            logger.error("Response [%s] does not start with expected '('", response)
+        response = response[1:]
+
         return response
 
     #pylint: disable=too-many-statements,too-many-branches
@@ -374,3 +423,27 @@ class Axpert:
             return ''
 
         return data
+
+
+@click.command()
+@click.help_option('-h', '--help')
+@click.option('-d', '--device', default=DEFAULT_DEV,
+              help='The inverter HID device to connect to.',
+              show_default=True)
+@click.option('-q', '--query', default=None,
+              type=click.Choice(QUERIES),
+              help="The query to issue.")
+
+def cli(device, query):
+    """
+    Main CLI interface
+    """
+    logger.info("Instantiating inverter device...")
+    inv = Axpert(device=device)
+    inv.open()
+    if query:
+        print(inv._sendCommand(query))
+    inv.close()
+
+if __name__ == "__main__":
+    cli()  #pylint: disable=no-value-for-parameter
