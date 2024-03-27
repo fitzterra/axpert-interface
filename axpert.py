@@ -263,8 +263,14 @@ class Axpert:
         # All responses starts with a '('. Validate and then strip it. Indexes
         # into bytes string returns int, so we use ord here to make sure we
         # compare ints to ints.
-        if not response[0] == ord(b"("):
-            logger.error("Response [%s] does not start with expected '('", response)
+        # NOTE: we use the hex representation here because using a "(" directly
+        # somehow messes up with VIM's bracket matching and then starts new
+        # code lines way more indented as they should.
+        start_char = b"\x28"
+        if not response[0] == ord(start_char):
+            logger.error(
+                "Response [%s] does not start with expected %s", response, start_char
+            )
         response = response[1:]
 
         return response
