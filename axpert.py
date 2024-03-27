@@ -3,7 +3,7 @@
 Interfacing to Axpert type inverters...
 """
 # We do sometimes want to catch broad exceptions
-#pylint: disable=broad-exception-caught
+# pylint: disable=broad-exception-caught
 
 import os
 import time
@@ -16,12 +16,12 @@ import click
 
 # Set up logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(encoding="utf-8", level=logging.DEBUG)
 
 # The default HID port to connect to. Normally we will have a udev rule that
 # will create a symlink to the Axpert device's HID port when it is plugged in.
 # This can then be used as default port.
-DEFAULT_DEV = '/dev/hidAxpert'
+DEFAULT_DEV = "/dev/hidAxpert"
 
 # A constant for how long we wait (in seconds) for sending/receiving from the
 # device to complete before we fail with a timeout
@@ -47,6 +47,7 @@ QUERIES = [
     "QPGS0",
     "QBV",
 ]
+
 
 class Axpert:
     """
@@ -81,7 +82,7 @@ class Axpert:
         # The CRC function to be used for Axpert command uses is of the
         # CRC-16/XMODEM variant. Here we create a CRC function using the crcmod
         # package and the predefined xmodem definition.
-        self._crc = crcmod.predefined.mkCrcFun('xmodem')
+        self._crc = crcmod.predefined.mkCrcFun("xmodem")
 
     def open(self):
         """
@@ -152,9 +153,10 @@ class Axpert:
             A bytes string as the CRC for the given input val.
         """
         # Ensure that val is a bytes string
-        val_b = val.encode('utf-8') if isinstance(val, str) else val
-        assert isinstance(val_b, bytes),\
-            f"A str or bytes str is expected for _calcCRC, not {type(val)}"
+        val_b = val.encode("utf-8") if isinstance(val, str) else val
+        assert isinstance(
+            val_b, bytes
+        ), f"A str or bytes str is expected for _calcCRC, not {type(val)}"
 
         # Calculate the CRC as a bytes string:
         # 1. Use the self._crc() method to calculate the xmodem CRC for the
@@ -171,7 +173,7 @@ class Axpert:
 
         # Return the crc after incrementing each of the reserved bytes by one
         # if they are present.
-        return unhexlify(crc_h).replace(b'\x0d', b'\x0e').replace(b'\x28', b'\x29')
+        return unhexlify(crc_h).replace(b"\x0d", b"\x0e").replace(b"\x28", b"\x29")
 
     def _sendCommand(self, command):
         """
@@ -188,7 +190,7 @@ class Axpert:
         try:
             # Encode the command string to a byte string. We need this to
             # calculate the CRC and sending to the device
-            cmd_b = command.encode('utf-8')
+            cmd_b = command.encode("utf-8")
             # Calculate the CRC as a bytes string
             crc_b = self._calcCRC(cmd_b)
 
@@ -204,7 +206,7 @@ class Axpert:
             # comment above for TX_CHUNK_SZ and TX_DELAY
             for offset in range(0, len(command_crc), self.TX_CHUNK_SZ):
                 time.sleep(self.TX_DELAY)
-                chunk = command_crc[offset:offset+self.TX_CHUNK_SZ]
+                chunk = command_crc[offset : offset + self.TX_CHUNK_SZ]
                 logger.debug(
                     "Writing max %s bytes to device: %s", self.TX_CHUNK_SZ, chunk
                 )
@@ -220,13 +222,13 @@ class Axpert:
             #       last bytes after the \r will be \x00 bytes. We will remove
             #       these trailing \x00 bytes when we see the \r
             while True:
-                time.sleep (0.15)
+                time.sleep(0.15)
                 r = os.read(self.port, 256)
                 logger.debug("Read from device: %s", r)
                 response += r
-                if b'\r' in r:
+                if b"\r" in r:
                     # Strip any trailing \x00 bytes - see comment above.
-                    response = response.rstrip(b'\x00')
+                    response = response.rstrip(b"\x00")
                     break
 
         except Exception:
@@ -241,7 +243,7 @@ class Axpert:
         # For sanity, validate that the last byte in the response is '\r' and
         # if so, trim it. Indexes into bytes string returns int, so we use ord
         # here to make sure we compare ints to ints.
-        if response[-1] != ord(b'\r'):
+        if response[-1] != ord(b"\r"):
             logger.error("Response [%s] does not end with '\\r'", response)
             return None
         response = response[:-1]
@@ -251,8 +253,9 @@ class Axpert:
         # 2 bytes.
         crc = self._calcCRC(response[:-2])
         if not response[-2:] == crc:
-            logger.error("Response [%s] CRC does not match expected CRC: [%s]",
-                         response, crc)
+            logger.error(
+                "Response [%s] CRC does not match expected CRC: [%s]", response, crc
+            )
             return None
         # Strip the CRC
         response = response[:-2]
@@ -260,15 +263,11 @@ class Axpert:
         # All responses starts with a '('. Validate and then strip it. Indexes
         # into bytes string returns int, so we use ord here to make sure we
         # compare ints to ints.
-        if not response[0] == ord(b'('):
-            logger.error(
-                "Response [%s] does not start with expected '('",
-                response
-            )
+        if not response[0] == ord(b"("):
+            logger.error("Response [%s] does not start with expected '('", response)
         response = response[1:]
 
         return response
-
 
     def query(self, qry):
         """
@@ -280,14 +279,21 @@ class Axpert:
 
 
 @click.command()
-@click.help_option('-h', '--help')
-@click.option('-d', '--device', default=DEFAULT_DEV,
-              help='The inverter HID device to connect to.',
-              show_default=True)
-@click.option('-q', '--query', default=None,
-              type=click.Choice(QUERIES),
-              help="The query to issue.")
-
+@click.help_option("-h", "--help")
+@click.option(
+    "-d",
+    "--device",
+    default=DEFAULT_DEV,
+    help="The inverter HID device to connect to.",
+    show_default=True,
+)
+@click.option(
+    "-q",
+    "--query",
+    default=None,
+    type=click.Choice(QUERIES),
+    help="The query to issue.",
+)
 def cli(device, query):
     """
     Main CLI interface
@@ -299,5 +305,6 @@ def cli(device, query):
         print(inv.query(query))
     inv.close()
 
+
 if __name__ == "__main__":
-    cli()  #pylint: disable=no-value-for-parameter
+    cli()  # pylint: disable=no-value-for-parameter
