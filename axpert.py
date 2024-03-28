@@ -270,19 +270,16 @@ class Axpert:
         # Now split on spaces for any multi-value results
         res = res.split(" ")
 
-        # Flags are parsed with the parseDeviceFlags() function
-        if qry == "QFLAG":
-            return entities.parseDeviceFlags(res[0])
-
-        # Warning states are parsed with the parseWarnState() function
-        if qry == "QPIWS":
-            return entities.parseWarnState(res[0])
-
         # Do we have a entity definition for this query?
-        ent_def = entities.QUERIES.get(qry)
-        if not ent_def:
-            # No definition, so we can return the result as is
-            return res
+        ent_def = entities.QUERIES.get(qry, None)
+        if ent_def is None:
+            raise ValueError(f"No query definition for {qry}")
+
+        # Is the definition callable, i.e. a function?
+        if callable(ent_def):
+            # Then call it passing in the result. If result is a one element
+            # array, we pass the element directly
+            return ent_def(res if len(res) > 1 else res[0])
 
         res = dict(zip(ent_def, res))
         try:
