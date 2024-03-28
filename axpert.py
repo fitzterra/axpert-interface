@@ -14,6 +14,8 @@ from binascii import unhexlify
 import crcmod
 import click
 
+import entities
+
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(encoding="utf-8", level=logging.DEBUG)
@@ -29,7 +31,6 @@ DEVICE_TIMEOUT = 10
 
 # Queries allowed
 QUERIES = [
-    "Q1",
     "QPI",
     "QID",
     "QVFW",
@@ -281,7 +282,36 @@ class Axpert:
 
         ???
         """
-        return self._sendCommand(qry)
+        # Send the query and get the returned data as a bytes string. If the
+        # result has multiple values, they would be separated by spaces.
+        # Also immediately convert to a unicode string for easier usage from
+        # here on
+        res = self._sendCommand(qry).decode("utf-8")
+        # Now split on spaces for any multi-value results
+        res = res.split(" ")
+
+        # Flags are parsed with the parseDeviceFlags() function
+        if qry == "QFLAG":
+            return entities.parseDeviceFlags(res[0])
+
+        # Warning states are parsed with the parseWarnState() function
+        if qry == "QPIWS":
+            return entities.parseWarnState(res[0])
+
+        # Do we have a entity definition for this query?
+        ent_def = entities.QUERIES.get(qry)
+        if not ent_def:
+            # No definition, so we can return the result as is
+            return res
+
+        res = dict(zip(ent_def, res))
+        try:
+            for k, v in res.items():
+                res[k] = entities.ENTITIES[k]["fmt"](v)
+        except Exception as exc:
+            raise RuntimeError(f"Error formatting entity {k}") from exc
+
+        return res
 
 
 @click.command()
