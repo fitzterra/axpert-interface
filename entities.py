@@ -368,8 +368,6 @@ ENTITIES = {
         "fmt": str,
         "unit": None,
     },
-    # TODO: These are not unknown. They seem to be part of the dev_stat bit
-    #      above, so when parsing dev_stat, also sort this out then
     # There are 4 additional values that are returned that does not seem to be
     # documented anywhere, so we add them here as unknown for now.
     "unkwn_1": {"desc": "Unknown param 1", "fmt": str, "unit": None},
@@ -417,6 +415,60 @@ ENTITIES = {
     "wi_res4": {"desc": "Reserved", "warn_ind": 30},
     "wi_res5": {"desc": "Reserved", "warn_ind": 31},
     # ====== End of warning indicators ======
+    # ====== Start of default settings values (QDI) ====
+    # NOTE: some of the QDI values are already defined above, so these are only
+    # the ones not defined yet.
+    "chg_float_v": {
+        "desc": "Charging float voltage",
+        "fmt": float,
+        "unit": "V",
+    },
+    "chg_bulk_v": {
+        "desc": "Charging bulk voltage",
+        "fmt": float,
+        "unit": "V",
+    },
+    "alarm_en": {"desc": "Alarm enabled", "fmt": lambda v: bool(int(v)), "unit": None},
+    "pwr_save_en": {
+        "desc": "Power saving enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "ovld_rstr_en": {
+        "desc": "Overload restart enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "ovr_temp_rstr_en": {
+        "desc": "Over temperature restart enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "lcd_blght_en": {
+        "desc": "LCD backlight enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "alrm_pri_src_int_en": {
+        "desc": "Alarm on for primary source interrupt enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "flt_code_rec_en": {
+        "desc": "Fault code recording enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "ovrl_bypass_en": {
+        "desc": "Overload bypass enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
+    "lcd_rtn_en": {
+        "desc": "LCD return to home page after 1 min enabled",
+        "fmt": lambda v: bool(int(v)),
+        "unit": None,
+    },
 }
 
 
