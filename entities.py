@@ -420,7 +420,20 @@ ENTITIES = {
 }
 
 
-# TODO Proper documentation
+# These are all the queries supported currently. The format is a dict with keys
+# being the query acronym and values one of:
+#   * A list of entity keys making up the result from the query. This list must
+#     match the values as returned by the query when sent to the inverter, in
+#     the same order as returned.
+#     The query mechanist will take this list one at a time, find it's entity
+#     definition in ENTITIES, and apply the result value to the formatting
+#     function to format the returned value. The entity keys and formatted
+#     values will then be added to a dict as the result for the query.
+#   * A callable that will parse or format the result. If a callable, it will
+#     be called passing in the query result as only arg, and the return from
+#     the callable will be the result returned.
+# The keys in this dict is also used as the choices list for the CLI -q
+# argument
 QUERIES = {
     "QPI": ["dev_prot_id"],
     "QID": ["dev_serial"],
@@ -453,7 +466,7 @@ QUERIES = {
         "pv_para_ok",
         "pv_p_bal",
     ],
-    # "QFLAG" will be parsed with parseDeviceFlags
+    "QFLAG": parseDeviceFlags,
     "QPIGS": [
         "grid_v",
         "grid_f",
@@ -478,5 +491,37 @@ QUERIES = {
         "unkwn_4",
     ],
     "QMOD": ["dev_mode"],
-    # "QPIWS" will be parsed with parseWarnState
+    "QPIWS": parseWarnState,
+    "QDI": [
+        "ac_out_v",
+        "ac_out_f",
+        "ac_chg_max_c",
+        "bat_und_v",
+        "chg_float_v",
+        "chg_bulk_v",
+        "bat_rchr_v",
+        "chg_max_c",
+        "ac_in_range_v",
+        "out_src_pri",
+        "chg_src_pri",
+        "bat_type",
+        "alarm_en",
+        "pwr_save_en",
+        "ovld_rstr_en",
+        "ovr_temp_rstr_en",
+        "lcd_blght_en",
+        "alrm_pri_src_int_en",
+        "flt_code_rec_en",
+        "ovrl_bypass_en",
+        "lcd_rtn_en",
+        "out_mode",
+        "bat_re_dchg_v",
+        "pv_para_ok",
+        "pv_p_bal",
+    ],
+    "QMCHGCR": str,
+    "QMUCHGCR": str,
+    "QBOOT": str,
+    "QOPM": str,
+    "QPGS0": str,
 }

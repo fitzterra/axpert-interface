@@ -29,26 +29,6 @@ DEFAULT_DEV = "/dev/hidAxpert"
 # device to complete before we fail with a timeout
 DEVICE_TIMEOUT = 10
 
-# Queries allowed
-QUERIES = [
-    "QPI",
-    "QID",
-    "QVFW",
-    "QVFW2",
-    "QFLAG",
-    "QPIGS",
-    "QMOD",
-    "QPIWS",
-    "QDI",
-    "QMCHGCR",
-    "QMUCHGCR",
-    "QBOOT",
-    "QOPM",
-    "QPIRI",
-    "QPGS0",
-    "QBV",
-]
-
 
 class Axpert:
     """
@@ -327,7 +307,7 @@ class Axpert:
     "-q",
     "--query",
     default=None,
-    type=click.Choice(QUERIES),
+    type=click.Choice(entities.QUERIES.keys()),
     help="The query to issue.",
 )
 @click.option(
