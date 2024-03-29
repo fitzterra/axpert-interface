@@ -117,7 +117,7 @@ DEVICE_MODE = {
 
 # TODO: Proper documentation
 ENTITIES = {
-    "dev_prot_id": {"desc": "Device protocol ID", "fmt": int, "unit": None},
+    "dev_prot_id": {"desc": "Device protocol ID", "fmt": str, "unit": None},
     "dev_serial": {"desc": "Device serial number", "fmt": str, "unit": None},
     "fw_ver": {"desc": "Main CPU firmware version", "fmt": str, "unit": None},
     "fw2_ver": {"desc": "Additional CPU firmware version", "fmt": str, "unit": None},
