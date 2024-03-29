@@ -11,6 +11,8 @@ import time
 import signal
 import logging
 from binascii import unhexlify
+from pprint import pformat
+import json
 
 import crcmod
 import click
@@ -256,7 +258,7 @@ class Axpert:
 
         return response
 
-    def query(self, qry):
+    def query(self, qry, add_units=True):
         """
         Sends a query command to the inverter and returns the result.
 
@@ -281,14 +283,56 @@ class Axpert:
             # array, we pass the element directly
             return ent_def(res if len(res) > 1 else res[0])
 
+        # Combine the entity keys list with the results split on spaces into a
+        # dict
         res = dict(zip(ent_def, res))
+        # Cycle through all entries in this dict and format any values that
+        # need formatting
         try:
             for k, v in res.items():
-                res[k] = entities.ENTITIES[k]["fmt"](v)
+                # Format the value
+                val = entities.ENTITIES[k]["fmt"](v)
+                # If we need to add units, go see if a unit is defined
+                unit = add_units and entities.ENTITIES[k].get("unit", False)
+                # If a unit should be added and one is available, reformat to a
+                # string and add the unit
+                if unit:
+                    val = f"{val}{unit}"
+                res[k] = val
         except Exception as exc:
             raise RuntimeError(f"Error formatting entity {k}") from exc
 
         return res
+
+
+def formatOutput(dat, fmt, pretty):
+    """
+    Format a Python data structure for output.
+
+    Args:
+        dat: This could be any Python structure that can be converted to the
+            desired format. Usually this will be a dict.
+        fmt (str): Currently one of:
+            * 'raw': This indicates no formatting
+            * 'json': Return data as a JSON string
+        pretty (bool): If True and the format option supports it, the output
+            will be pretty formatted.
+
+    Returns:
+        The dat input formatted as a string in the desired format.
+    """
+    if fmt == "raw":
+        # If there is no pretty formatting, we return data as a string
+        if not pretty:
+            return str(dat)
+        # Pretty format the output
+        return pformat(dat)
+
+    if fmt == "json":
+        indent = 2 if pretty else None
+        return json.dumps(dat, indent=indent)
+
+    raise ValueError(f"Format '{format}' is not supported")
 
 
 def loggerConfig(logfile, loglevel):
@@ -348,6 +392,29 @@ def loggerConfig(logfile, loglevel):
     help="The query to issue.",
 )
 @click.option(
+    "-u/-nu",
+    "--units/--no-units",
+    default=False,
+    show_default=True,
+    help="Add units to any query values that have units defined.",
+)
+@click.option(
+    "-f",
+    "--format",
+    "fmt",  # The format name is a reserved word so we pass it as 'fmt'
+    default="raw",
+    type=click.Choice(("raw", "json")),
+    help="Set the output format. The raw option is standard Python object output",
+)
+@click.option(
+    "-P/-U",
+    "--pretty/--ugly",
+    default=False,
+    show_default=True,
+    help="Some format option will allow a more readable (pretty) output. "
+    "This can be switched on/off with this option.",
+)
+@click.option(
     "-l",
     "--logfile",
     default=None,
@@ -365,17 +432,19 @@ def loggerConfig(logfile, loglevel):
     show_default=True,
     help="Set the loglevel.",
 )
-def cli(device, query, logfile, loglevel):
+def cli(device, query, units, fmt, pretty, logfile, loglevel):
     """
     Main CLI interface
     """
+    # We need all these args, so @pylint: disable=too-many-arguments
+
     loggerConfig(logfile, loglevel)
 
     logger.info("Instantiating inverter device...")
     inv = Axpert(device=device)
     inv.open()
     if query:
-        print(inv.query(query))
+        print(formatOutput(inv.query(query, units), fmt, pretty))
     inv.close()
 
 
