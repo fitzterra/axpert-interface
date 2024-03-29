@@ -97,6 +97,7 @@ class Axpert:
         if self.port:
             logger.info("Closing device.")
             os.close(self.port)
+        self.port = None
 
     def _timeoutAlarm(self, signum, _):
         """
@@ -166,11 +167,20 @@ class Axpert:
         Args:
             command (str): The command to send.
 
+        Raises:
+            AssertionError if the port is not open
+            OSError if there was an error reading or writing the port
+            Others that might bubble up from lower levels
+
         Returns:
             The response after removing the leading '(', validating and
             removing the CRC and trailing '\r' if all is well.
             None if an error occurred, with the error info logged.
         """
+        if self.port is None:
+            logger.error("Inverter port is not open. Try using open() first.")
+            return None
+
         try:
             # Encode the command string to a byte string. We need this to
             # calculate the CRC and sending to the device
@@ -453,7 +463,7 @@ def loggerConfig(logfile, loglevel):
 )
 def cli(device, query, units, fmt, pretty, logfile, loglevel):
     """
-    Main CLI interface
+    Axpert Inverter CLI interface.
     """
     # We need all these args, so @pylint: disable=too-many-arguments
 

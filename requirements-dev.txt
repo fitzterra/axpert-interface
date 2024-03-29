@@ -4,6 +4,7 @@
 ipython
 ipdb
 pylint
-black==24.3.0
+black>=24.3.0
 
+# Always chain to the main runtime requirements file
 -r requirements.txt
