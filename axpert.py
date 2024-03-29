@@ -16,6 +16,7 @@ import json
 
 import crcmod
 import click
+from prettytable import PrettyTable
 
 import entities
 
@@ -310,11 +311,12 @@ def formatOutput(dat, fmt, pretty):
     Format a Python data structure for output.
 
     Args:
-        dat: This could be any Python structure that can be converted to the
-            desired format. Usually this will be a dict.
+        dat (dict): This is a dictionary with entity keys and values. The keys
+        are expected to exists in entities.ENTITIES.
         fmt (str): Currently one of:
             * 'raw': This indicates no formatting
             * 'json': Return data as a JSON string
+            * 'table': Returns the dat as a pretty formatted table.
         pretty (bool): If True and the format option supports it, the output
             will be pretty formatted.
 
@@ -331,6 +333,23 @@ def formatOutput(dat, fmt, pretty):
     if fmt == "json":
         indent = 2 if pretty else None
         return json.dumps(dat, indent=indent)
+
+    if fmt == "table":
+        table = PrettyTable()
+        table.field_names = ["key", "desc", "value", "prog"]
+        for k, v in dat.items():
+            table.add_row(
+                [
+                    k,
+                    entities.ENTITIES[k]["desc"],
+                    v,
+                    entities.ENTITIES[k].get("prog", ""),
+                ]
+            )
+        table.align = "l"
+        table.align["value"] = "r"
+        table.align["prog"] = "c"
+        return table.get_string()
 
     raise ValueError(f"Format '{format}' is not supported")
 
@@ -403,7 +422,7 @@ def loggerConfig(logfile, loglevel):
     "--format",
     "fmt",  # The format name is a reserved word so we pass it as 'fmt'
     default="raw",
-    type=click.Choice(("raw", "json")),
+    type=click.Choice(("raw", "json", "table")),
     help="Set the output format. The raw option is standard Python object output",
 )
 @click.option(
