@@ -139,3 +139,5 @@ ovld
 rstr
 blght
 qry
+stdout
+stderr

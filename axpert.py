@@ -6,6 +6,7 @@ Interfacing to Axpert type inverters...
 # pylint: disable=broad-exception-caught
 
 import os
+import sys
 import time
 import signal
 import logging
@@ -16,9 +17,8 @@ import click
 
 import entities
 
-# Set up logging
+# Create a logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(encoding="utf-8", level=logging.DEBUG)
 
 # The default HID port to connect to. Normally we will have a udev rule that
 # will create a symlink to the Axpert device's HID port when it is plugged in.
@@ -291,6 +291,46 @@ class Axpert:
         return res
 
 
+def loggerConfig(logfile, loglevel):
+    """
+    Sets up output logging.
+
+    Note: This function assumes a logger has already been created and is
+    available in the global context as `logger`. This can be done with:
+
+        logger = logging.getLogger(__name__)
+
+    Args:
+        logfile (str|None): Path to logfile or None to disable. This could also
+            be '-' for stdout or '_' for stderr.
+        loglevel (str): One of 'critical', 'fatal', 'error', 'warn', 'warning',
+            'info' or 'debug'
+    """
+    # Set up the correct handler based of the logfile path
+    if logfile is None:
+        # If logfile is None, we add a NullHandler which makes logging no-op
+        handler = logging.NullHandler()
+    elif logfile in ("-", "_"):
+        # For stdout or stderr we need to add a stream handler
+        stream = sys.stdout if logfile == "-" else sys.stderr
+        handler = logging.StreamHandler(stream)
+    else:
+        # We assume it isa valid path and add a file hanle
+        handler = logging.FileHandler(logfile, encoding="utf-8")
+
+    # Set up the formatter
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    handler.setFormatter(formatter)
+
+    # Add the handler to the logger
+    logger.addHandler(handler)
+
+    # Get the log level by converting the level string to a logging level
+    # integer and set the level on the handler
+    level = logging.getLevelNamesMapping()[loglevel.upper()]
+    logger.setLevel(level)
+
+
 @click.command()
 @click.help_option("-h", "--help")
 @click.option(
@@ -308,6 +348,12 @@ class Axpert:
     help="The query to issue.",
 )
 @click.option(
+    "-l",
+    "--logfile",
+    default=None,
+    help="Log file path to enable logging. Use - for stdout or _ for stderr. Disabled by default",
+)
+@click.option(
     "-L",
     "--loglevel",
     default="info",
@@ -319,14 +365,11 @@ class Axpert:
     show_default=True,
     help="Set the loglevel.",
 )
-def cli(device, query, loglevel):
+def cli(device, query, logfile, loglevel):
     """
     Main CLI interface
     """
-    # Set the log level before anything else. We get the level name as a
-    # lowercase string which we then uppercase and use as lookup in the dict of
-    # level names and values returned
-    logger.setLevel(logging.getLevelNamesMapping()[loglevel.upper()])
+    loggerConfig(logfile, loglevel)
 
     logger.info("Instantiating inverter device...")
     inv = Axpert(device=device)
