@@ -359,7 +359,7 @@ def loggerConfig(logfile, loglevel):
         stream = sys.stdout if logfile == "-" else sys.stderr
         handler = logging.StreamHandler(stream)
     else:
-        # We assume it isa valid path and add a file hanle
+        # We assume it is a valid path and add a file handler
         handler = logging.FileHandler(logfile, encoding="utf-8")
 
     # Set up the formatter

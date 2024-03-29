@@ -141,3 +141,17 @@ blght
 qry
 stdout
 stderr
+SZ
+x00
+VIM's
+dat
+fmt
+json
+logger
+getLogger
+loglevel
+NullHandler
+asctime
+levelname
+NOTSET
+hidAxpert
