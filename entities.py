@@ -109,7 +109,7 @@ def parseWarnState(stat):
 
 # Some pre-compiled regexes for validation, etc. These are the search function
 # for the regexes, so use them like IS_VOLTAGE('12.3') for example.
-IS_VOLTAGE = re.compile(r"^\d{1,2}\.\d$").search
+IS_VOLTAGE = re.compile(r"^\d{2}\.\d$").search
 
 # Device mode lookup table for QMOD
 DEVICE_MODE = {
@@ -168,16 +168,20 @@ ENTITIES = {
         "fmt": float,
         "unit": "V",
     },
-    "bat_rchr_v": {
-        "desc": "Battery re-charge voltage",
+    "bat_util_fb_v": {
+        # Note in the PDF doc this is called `Battery re-charge voltage`, but
+        # in my Inverter manual this is the point where input falls back to
+        # utility when in Solar 1st, or SBU mode (prog 01)
+        "desc": "Battery voltage point for utility fallback",
         "fmt": float,
         "unit": "V",
+        "prog": "12",
     },
     "bat_und_v": {
-        "desc": "Battery under voltage (low DC cut-off?)",
+        "desc": "Battery under voltage (low DC cut-off)",
         "fmt": float,
         "unit": "V",
-        "prog": "??",
+        "prog": "29",
     },
     "bat_bulk_v": {
         "desc": "Battery bulk charging voltage",
@@ -247,10 +251,11 @@ ENTITIES = {
         "fmt": lambda v: ("Single", "Parallel", "Ph1/3", "Ph2/3", "Ph3/3")[int(v)],
         "unit": None,
     },
-    "bat_re_dchg_v": {
-        "desc": "Battery re-discharge voltage???",
+    "bar_ret_v": {
+        "desc": "Battery voltage return to solar/battery (0=full)",
         "fmt": float,
         "unit": "V",
+        "prog": "13",
     },
     "pv_para_ok": {
         "desc": "PV OK condition for parallel",
@@ -511,7 +516,7 @@ QUERIES = {
             "ac_out_rate_apar_p",
             "ac_out_rate_act_p",
             "bat_rate_v",
-            "bat_rchr_v",
+            "bat_util_fb_v",
             "bat_und_v",
             "bat_bulk_v",
             "bat_flt_v",
@@ -525,7 +530,7 @@ QUERIES = {
             "inv_type",
             "topology",
             "out_mode",
-            "bat_re_dchg_v",
+            "bar_ret_v",
             "pv_para_ok",
             "pv_p_bal",
         ],
@@ -568,7 +573,7 @@ QUERIES = {
             "bat_und_v",
             "chg_float_v",
             "chg_bulk_v",
-            "bat_rchr_v",
+            "bat_util_fb_v",
             "chg_max_c",
             "ac_in_range_v",
             "out_src_pri",
@@ -584,7 +589,7 @@ QUERIES = {
             "ovrl_bypass_en",
             "lcd_rtn_en",
             "out_mode",
-            "bat_re_dchg_v",
+            "bar_ret_v",
             "pv_para_ok",
             "pv_p_bal",
         ],
@@ -773,7 +778,7 @@ COMMANDS = {
         "disabled": True,
     },
     "OUT_PRI": {
-        "info": "Set device output priority. ARG: utility_1st | solar_1st | SBU",
+        "info": "Set device output source priority. ARG: utility_1st | solar_1st | SBU",
         # Conversion is the get() method for this dict.
         "args": [{"utility_1st": "00", "solar_1st": "01", "SBU": "02"}.get],
         "validate": [lambda v: v in ["00", "01", "02"]],
@@ -783,27 +788,31 @@ COMMANDS = {
         "disabled": True,
         "prog": "01",
     },
-    "BAT_RCH": {
-        "info": "Set battery recharge voltage. ARG: ???",
-        # Not sure if we can have any value here , or only specific values?????
-        "args": [],
-        # "validate": [],
-        # Receives the converted arg and builds the inverter
-        # command as 'PBCVnn.n' ???????????????????????????
+    "BAT_UFB_V": {
+        # The PDF doc refers to this as the battery recharge voltage, but my
+        # interver manual refers to this as the battery voltage at which point
+        # the input source will fall back to utility if in Solar 1st or SBU
+        # mode (prog 01 or OUT_PRI)
+        "info": "Set battery voltage point for utility fallback. ARG nn.n",
+        # No conversion. Validation will catch most errors
+        "args": [None],
+        "validate": [IS_VOLTAGE],
         "cmd": lambda a: f"PBCV{a}",
-        # Disabled for now
-        "disabled": True,
+        "prog": "12",
     },
-    "BAT_RDCH": {
-        "info": "Set battery re-discharge voltage. ARG: ???",
-        # Not sure if we can have any value here , or only specific values?????
-        "args": [],
-        # "validate": [],
+    "BAT_RET_V": {
+        # The PDF doc refers to this as the battery re-discharge voltage, but
+        # my inverter manual refers to this as the voltage point at which to
+        # return to battery input when in solar/sbu mode and having switched to
+        # utility.
+        "info": "Set battery voltage to return to bat in sol/bat mode (0=full). ARG: nn.n",
+        # No conversion. Validation will catch most errors
+        "args": [None],
+        "validate": [IS_VOLTAGE],
         # Receives the converted arg and builds the inverter
-        # command as 'PBDVnn.n' ???????????????????????????
+        # command as 'PBDVnn.n'
         "cmd": lambda a: f"PBDV{a}",
-        # Disabled for now
-        "disabled": True,
+        "prog": "13",
     },
     "CHG_PRI": {
         "info": "Set device charge priority. ARG: utility_1st | solar_1st | sol_util | sol_only",
@@ -858,6 +867,16 @@ COMMANDS = {
         "prog": "05",
         # Disabled for now
         "disabled": True,
+    },
+    "BAT_UND_V": {
+        "info": "Set battery under (low DC cut-off) voltage, ARG: nn.n",
+        # No conversion. Validation will catch most errors
+        "args": [None],
+        "validate": [IS_VOLTAGE],
+        # Receives the converted arg and builds the inverter
+        # command as 'PCVVnn.n'
+        "cmd": lambda a: f"PSDV{a}",
+        "prog": "29",
     },
     "BAT_BCH": {
         "info": "Set battery bulk charge (c.v.) voltage. ARG: nn.n",
