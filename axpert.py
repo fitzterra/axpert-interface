@@ -68,6 +68,19 @@ class Axpert:
         # package and the predefined xmodem definition.
         self._crc = crcmod.predefined.mkCrcFun("xmodem")
 
+    def __enter__(self):
+        """
+        Entry point for context manager
+        """
+        self.open()
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_traceback):
+        """
+        Called when the context is destroyed.
+        """
+        self.close()
+
     def open(self):
         """
         Tries to open the HID device defined by `self.device` and assign this as
@@ -156,16 +169,20 @@ class Axpert:
         if len(crc_h) % 2:
             crc_h = f"0{crc_h}"
 
-        # Return the crc after incrementing each of the reserved bytes by one
-        # if they are present.
-        return unhexlify(crc_h).replace(b"\x0d", b"\x0e").replace(b"\x28", b"\x29")
+        # Incrementing any of the reserved bytes by one if they are present
+        # after converting the hex string to a binary version
+        crc = unhexlify(crc_h).replace(b"\x0d", b"\x0e").replace(b"\x28", b"\x29")
+        # The final CRC must be 2 bytes, or else we pad to the left with null
+        if len(crc) == 1:
+            crc = b"\x00" + crc
+        return crc
 
-    def _sendCommand(self, command):
+    def _sendRequest(self, request):
         """
-        Sends the command to the inverter, and returns the response received.
+        Sends the request to the inverter, and returns the response received.
 
         Args:
-            command (str): The command to send.
+            request (str): The request to send.
 
         Raises:
             AssertionError if the port is not open
@@ -182,29 +199,50 @@ class Axpert:
             return None
 
         try:
-            # Encode the command string to a byte string. We need this to
+            # Encode the request string to a byte string. We need this to
             # calculate the CRC and sending to the device
-            cmd_b = command.encode("utf-8")
+            cmd_b = request.encode("utf-8")
             # Calculate the CRC as a bytes string
             crc_b = self._calcCRC(cmd_b)
 
-            # Now create the final command to send to the device consisting of
-            # the command name, followed by the crc, followed by a CR ('\r')
-            command_crc = b"%b%b\r" % (cmd_b, crc_b)
+            # Now create the final request to send to the device consisting of
+            # the request name, followed by the crc, followed by a CR ('\r')
+            request_crc = b"%b%b\r" % (cmd_b, crc_b)
 
             # Set up a timeout alarm in case the process gets stuck
             signal.signal(signal.SIGALRM, self._timeoutAlarm)
             signal.alarm(DEVICE_TIMEOUT)
 
-            # We write the command in chunks with a delay between chunks. See
+            # We write the request in chunks with a delay between chunks. See
             # comment above for TX_CHUNK_SZ and TX_DELAY
-            for offset in range(0, len(command_crc), self.TX_CHUNK_SZ):
+            for offset in range(0, len(request_crc), self.TX_CHUNK_SZ):
                 time.sleep(self.TX_DELAY)
-                chunk = command_crc[offset : offset + self.TX_CHUNK_SZ]
+                chunk = request_crc[offset : offset + self.TX_CHUNK_SZ]
                 logger.debug(
                     "Writing max %s bytes to device: %s", self.TX_CHUNK_SZ, chunk
                 )
-                os.write(self.port, chunk)
+                try:
+                    # This is a hack to get a round a strange error where the
+                    # os.write raises this error:
+                    #  OSError: [Errno 22] Invalid argument
+                    # if the last chunk to write is a single b'\r'
+                    # To get around this, we append a null character to the
+                    # bytes to write, which it seems the inverter is fine with.
+                    # I noticed that bytes received from the inverter are
+                    # always padded with nulls to fill up 8 bytes, so the idea
+                    # to add a null comes from there.
+                    if chunk == b"\r":
+                        chunk = b"\r\x00"
+                        logging.info("Adding b'\x00' to chunk: %s", chunk)
+                    # Now write it
+                    os.write(self.port, chunk)
+                except OSError:
+                    logger.exception("Error writing to device.")
+                    # Reset the timeout alarm
+                    signal.alarm(0)
+                    # Close the port
+                    self.close()
+                    return None
 
             response = b""
 
@@ -232,7 +270,7 @@ class Axpert:
         # Reset the timeout alarm
         signal.alarm(0)
 
-        logger.debug("Command: %s | Response: %s", command, response)
+        logger.debug("Request: %s | Response: %s", request, response)
 
         # For sanity, validate that the last byte in the response is '\r' and
         # if so, trim it. Indexes into bytes string returns int, so we use ord
@@ -279,7 +317,7 @@ class Axpert:
         # result has multiple values, they would be separated by spaces.
         # Also immediately convert to a unicode string for easier usage from
         # here on
-        res = self._sendCommand(qry).decode("utf-8")
+        res = self._sendRequest(qry).decode("utf-8")
         # Now split on spaces for any multi-value results
         res = res.split(" ")
 
@@ -287,6 +325,9 @@ class Axpert:
         ent_def = entities.QUERIES.get(qry, None)
         if ent_def is None:
             raise ValueError(f"No query definition for {qry}")
+
+        # The entity definition is in definition is in the 'def' key
+        ent_def = ent_def["def"]
 
         # Is the definition callable, i.e. a function?
         if callable(ent_def):
@@ -314,6 +355,31 @@ class Axpert:
             raise RuntimeError(f"Error formatting entity {k}") from exc
 
         return res
+
+    def command(self, cmd):
+        """
+        Sends a command to the inverter and returns the result.
+
+        Args:
+            cmd (str): The inverter command to send.
+
+        Returns:
+            True if the command was accepted, False otherwise
+        """
+        logger.info("Issuing command '%s'....", cmd)
+        # Send the command and get the returned data as a bytes string. If the
+        # result has multiple values, they would be separated by spaces.
+        # Also immediately convert to a unicode string for easier usage from
+        # here on
+        res = self._sendRequest(cmd).decode("utf-8")
+
+        if res == "ACK":
+            logger.info("Command '%s' completed successfully.", cmd)
+            # Command was accepted, return True
+            return True
+
+        logger.error("Command '%s' was not accepted. Response: %s", cmd, res)
+        return False
 
 
 def formatOutput(dat, fmt, pretty):
@@ -404,8 +470,8 @@ def loggerConfig(logfile, loglevel):
     logger.setLevel(level)
 
 
-@click.command()
 @click.help_option("-h", "--help")
+@click.group()
 @click.option(
     "-d",
     "--device",
@@ -414,12 +480,42 @@ def loggerConfig(logfile, loglevel):
     show_default=True,
 )
 @click.option(
-    "-q",
-    "--query",
+    "-l",
+    "--logfile",
     default=None,
-    type=click.Choice(entities.QUERIES.keys()),
-    help="The query to issue.",
+    help="Log file path to enable logging. Use - for stdout or _ for stderr. Disabled by default",
 )
+@click.option(
+    "-L",
+    "--loglevel",
+    default="info",
+    type=click.Choice(
+        # We get all the available level names where the level is greater than
+        # 0 (NOTSET) and convert them to lowercase names as the level choices
+        [n.lower() for n, l in logging.getLevelNamesMapping().items() if l > 0]
+    ),
+    show_default=True,
+    help="Set the loglevel.",
+)
+@click.pass_context
+def cli(ctx, device, logfile, loglevel):
+    """
+    Axpert Inverter CLI interface.
+    """
+    # ensure that ctx.obj exists and is a dict (in case `cli()` is called
+    # by means other than the `if` block below)
+    ctx.ensure_object(dict)
+    # Pass this through so the sub commands can open the inverter
+    ctx.obj["device"] = device
+
+    loggerConfig(logfile, loglevel)
+
+    logger.info("Instantiating inverter device...")
+
+
+@cli.command()
+@click.help_option("-h", "--help")
+@click.argument("qry")
 @click.option(
     "-u/-nu",
     "--units/--no-units",
@@ -443,38 +539,151 @@ def loggerConfig(logfile, loglevel):
     help="Some format option will allow a more readable (pretty) output. "
     "This can be switched on/off with this option.",
 )
-@click.option(
-    "-l",
-    "--logfile",
-    default=None,
-    help="Log file path to enable logging. Use - for stdout or _ for stderr. Disabled by default",
-)
-@click.option(
-    "-L",
-    "--loglevel",
-    default="info",
-    type=click.Choice(
-        # We get all the available level names where the level is greater than
-        # 0 (NOTSET) and convert them to lowercase names as the level choices
-        [n.lower() for n, l in logging.getLevelNamesMapping().items() if l > 0]
-    ),
-    show_default=True,
-    help="Set the loglevel.",
-)
-def cli(device, query, units, fmt, pretty, logfile, loglevel):
+@click.pass_context
+def query(
+    ctx,
+    qry,
+    units,
+    fmt,
+    pretty,
+):
     """
-    Axpert Inverter CLI interface.
+    Issue the QRY query request to the inverter, returning the query result.
+
+    To see a list of available QRY arguments, use `list` as QRY argument
     """
-    # We need all these args, so @pylint: disable=too-many-arguments
+    # Show available queries if required
+    if qry.lower() == "list":
+        print("\nAvailable queries:")
+        table = PrettyTable()
+        table.field_names = ["QRY", "Description"]
+        for k, v in entities.QUERIES.items():
+            table.add_row([k, v["info"]])
+        table.align = "l"
+        print(table)
+        return
 
-    loggerConfig(logfile, loglevel)
+    # Validate that the qry arg is valid
+    if qry not in entities.QUERIES:
+        print(
+            f"\nInvalid query request '{qry}'. Use `list` as QRY arg for "
+            "a list of available queries, or try -h\n"
+        )
+        sys.exit(1)
 
-    logger.info("Instantiating inverter device...")
-    inv = Axpert(device=device)
-    inv.open()
-    if query:
-        print(formatOutput(inv.query(query, units), fmt, pretty))
-    inv.close()
+    # Instantiate an Axpert instance and send the query
+    device = ctx.obj["device"]
+    with Axpert(device=device) as inv:
+        print(formatOutput(inv.query(qry, units), fmt, pretty))
+
+
+@cli.command()
+@click.help_option("-h", "--help")
+@click.argument("cmd")
+@click.argument("arg", required=False, nargs=-1)
+@click.pass_context
+def command(ctx, cmd, arg):
+    """
+    Issue the CMD command to the inverter and indicates success or failure.
+
+    To get a list of available commands, use 'list' for CMD.
+    Some commands takes additional arguments, and these should be supplied as
+    ARG to the CMD.
+    """
+    logger.debug("Processing command '%s' with arg '%s'", cmd, arg)
+
+    # Show a list of commands?
+    if cmd.lower() == "list":
+        print("\nAvailable commands:")
+        table = PrettyTable()
+        table.field_names = ["CMD", "Description", "Prog"]
+        for k, v in entities.COMMANDS.items():
+            table.add_row([k, v["info"], v.get("prog", "")])
+        table.align = "l"
+        print(table)
+        return
+
+    # Get the command definition, or None if invalid cmd
+    cmd_def = entities.COMMANDS.get(cmd, None)
+    if cmd_def is None:
+        print(
+            f"\nInvalid command request '{cmd}'. Use `list` as CMD arg for "
+            "a list of available commands, or try -h\n"
+        )
+        sys.exit(1)
+
+    # Do the arg count match the expected count?
+    if len(cmd_def["args"]) != len(arg):
+        print(
+            f"\nExpected {len(cmd_def['args'])} argument(s), for {cmd} "
+            f"but got {len(arg)}: {arg}. Try 'list' or -h.\n"
+        )
+        sys.exit(1)
+
+    # Convert the args using the args conversion functions
+    args = []
+    for conv, val in zip(cmd_def["args"], arg):
+        if conv is not None:
+            try:
+                logger.debug("Attempting argument conversion using %s(%s)", conv, val)
+                args.append(conv(val))
+            except ValueError as exc:
+                print(f"\nArgument error: {exc}. Try 'list' or -h\n")
+                sys.exit(1)
+        else:
+            args.append(val)
+
+    # Do we have a validation definition?
+    # NOTE: If available, we apply it after the arg conversions
+    validate = cmd_def.get("validate", None)
+    if validate is not None:
+        if len(validate) != len(args):
+            print(
+                f"\nExpected {len(args)} validation(s), for {cmd} "
+                f"but got {len(validate)}. Seems to be a definition error.\n"
+            )
+            sys.exit(1)
+        # Validate each arg with the corresponding validation function,
+        # including the original arg for error reporting if validation fails.
+        for v, a, o_a in zip(validate, args, arg):
+            if v is None:
+                continue
+            # The validation rule is expected to be callable.
+            if not v(a):
+                print(f"\nValidation for argument '{o_a}' failed. Try 'list' or -h.\n")
+                sys.exit(1)
+
+    # For convenience, if args is only one element, we pop it out of the list
+    # as a single arg
+    if len(args) == 1:
+        args = args.pop()
+
+    logger.debug("Args converted to: '%s'", args)
+
+    # Now, if the entity definition command is a callable, we call it, passing
+    # it args, and this will give us the command mnemonic to send to the
+    # inverter.
+    cmd_f = cmd_def["cmd"]
+    if callable(cmd_f):
+        logger.debug("Attempting to generate mnemonic with %s(%s)", cmd_f, args)
+        cmd_f = cmd_f(args)
+
+    logger.debug("Final mnemonic to send: %s", cmd_f)
+
+    # If the command is disabled, we just log that here and return
+    if cmd_def.get("disabled", False):
+        print(f"Command {cmd} is hard disabled. Not sending.")
+        return
+    # Instantiate an Axpert instance and send the command
+    device = ctx.obj["device"]
+    with Axpert(device=device) as inv:
+        res = inv.command(cmd_f)
+
+    if res:
+        print(f"Successfully completed command: {cmd} {arg} as {cmd_f}")
+    else:
+        print(f"Command '{cmd} {arg}' failed. See log for details.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
