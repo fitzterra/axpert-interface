@@ -470,6 +470,42 @@ def loggerConfig(logfile, loglevel):
     logger.setLevel(level)
 
 
+def shellCompleteHelper(ctx, param, incomplete):
+    """
+    Helper function for shell completion of query and command arguments.
+
+    This is called if shell completion has been installed and the <tab> is
+    pressed after the `query` or `command` arguments.
+
+    See: https://click.palletsprojects.com/en/latest/shell-completion/#overriding-value-completion
+    for more info.
+
+    Args:
+        ctx (obj): The current command context.
+        param (click.Argument): The current parameter requesting completion.
+        incomplete (str): The partial word that is being completed. May be an
+            empty string if no characters have been entered yet.
+
+    Returns:
+        A list of strings that matches the incomplete arg for the given
+        parameter.
+    """
+    # We do not use the ctx arg now @pylint: disable=unused-argument
+
+    # Set the source for completions from the param
+    src = entities.QUERIES if param.name == "qry" else entities.COMMANDS
+
+    # We also have a 'list' arg to either 'query' or 'command' args, but list
+    # is not a key in either the QUERIES or COMMANDS dict. To allow the 'list'
+    # arg to be considered for completion, we create a new dict with 'list' as
+    # the first element, and the src dict keys as the remaining elements
+    src = ["list"] + list(src)
+
+    # Return all keys in the given source based on the incomplete arg. Note
+    # that startswith() will always match if the starts with string is ''
+    return [opt for opt in src if opt.startswith(incomplete)]
+
+
 @click.help_option("-h", "--help")
 @click.group()
 @click.option(
@@ -515,7 +551,7 @@ def cli(ctx, device, logfile, loglevel):
 
 @cli.command()
 @click.help_option("-h", "--help")
-@click.argument("qry")
+@click.argument("qry", shell_complete=shellCompleteHelper)
 @click.option(
     "-u/-nu",
     "--units/--no-units",
@@ -579,7 +615,7 @@ def query(
 
 @cli.command()
 @click.help_option("-h", "--help")
-@click.argument("cmd")
+@click.argument("cmd", shell_complete=shellCompleteHelper)
 @click.argument("arg", required=False, nargs=-1)
 @click.pass_context
 def command(ctx, cmd, arg):

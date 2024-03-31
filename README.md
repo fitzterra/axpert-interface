@@ -8,9 +8,12 @@
 	1. [Into a Python Virtual Environment](#into-a-python-virtual-environment)
 	2. [By cloning the repo](#by-cloning-the-repo)
 	3. [Setting up `udev` rules](#setting-up-udev-rules)
-	4. [Setting up bash completion](#setting-up-bash-completion)
-4. [Getting started](#getting-started)
-5. [Axpert Protocol](#axpert-protocol)
+	4. [Setting up shell completion](#setting-up-shell-completion)
+		1. [Bash completion](#bash-completion)
+		2. [Zsh completion](#zsh-completion)
+		3. [Fish completion](#fish-completion)
+5. [Getting started](#getting-started)
+6. [Axpert Protocol](#axpert-protocol)
 
 ## Introduction
 
@@ -59,15 +62,59 @@ After activating the venv change to the repo dir and run:
 
 This is where we do that ????????????????
 
-### Setting up bash completion
+### Setting up shell completion
 
-????????????
+Shell tab completion can be set up for all commands and arguments for the
+`axpert` command after [installation](#installation).
 
-* Get the various completion files into `etc/bash_completion.d` 
-* Use a `Makefile` to auto build these - or else use GL pipeline
-* Explain to the user how to add it to their startup env..
+Setting up completion for the supported shells are described in the following sections.
 
-See: https://click.palletsprojects.com/en/8.1.x/shell-completion/#enabling-completion
+Shell completion is done via the [click] library. See [click shell completion] for more info.
+
+
+#### Bash completion
+
+Add this to `~/.bashrc`:
+
+    eval "$(_AXPERT_COMPLETE=bash_source axpert)"
+
+For faster shell startup, you can write the completion script somewhere and
+then source it from `~/.bashrc`. If doing this, you need to update the
+completion script every time a new version is installed. Something like:
+
+    _AXPERT_COMPLETE=bash_source axpert > ~/.axpert-completion.bash
+
+Then in you `~/.bashrc`, source it like this:
+
+    . ~/.axpert-completion.bash
+
+#### Zsh completion
+
+Add this to `~/.zshrc`:
+
+    eval "$(_AXPERT_COMPLETE=zsh_source axpert)"
+
+For faster shell startup, you can write the completion script somewhere and
+then source it from `~/.zshrc`. If doing this, you need to update the
+completion script every time a new version is installed. Something like:
+
+    _AXPERT_COMPLETE=zsh_source axpert > ~/.axpert-completion.zsh
+
+Then in you `~/.zshrc`, source it like this:
+
+    . ~/.axpert-completion.zsh
+
+#### Fish completion
+
+Add this to `~/.config/fish/completions/axpert.fish`:
+
+    (_AXPERT_COMPLETE=fish_source axpert | source
+
+For faster shell startup, you can write the completion script directly to the
+completions dir. If doing this, you need to update the
+completion script every time a new version is installed. Something like:
+
+    _AXPERT_COMPLETE=fish_source axpert > ~/.config/fish/completions/axpert.fish
 
 ## Getting started
 
@@ -82,3 +129,8 @@ To see all CLI options.
 
 The comms protocol is described to some fashion in
 [this](doc/axpert_protocol.md) doc
+
+
+<!-- links -->
+[click]: https://click.palletsprojects.com/en/latest/
+[click shell completion]: https://click.palletsprojects.com/en/latest/shell-completion/#enabling-completion
