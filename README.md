@@ -7,7 +7,10 @@
 3. [Installation](#installation)
 	1. [Into a Python Virtual Environment](#into-a-python-virtual-environment)
 	2. [By cloning the repo](#by-cloning-the-repo)
+	3. [Setting up `udev` rules](#setting-up-udev-rules)
+	4. [Setting up bash completion](#setting-up-bash-completion)
 4. [Getting started](#getting-started)
+5. [Axpert Protocol](#axpert-protocol)
 
 ## Introduction
 
@@ -56,6 +59,16 @@ After activating the venv change to the repo dir and run:
 
 This is where we do that ????????????????
 
+### Setting up bash completion
+
+????????????
+
+* Get the various completion files into `etc/bash_completion.d` 
+* Use a `Makefile` to auto build these - or else use GL pipeline
+* Explain to the user how to add it to their startup env..
+
+See: https://click.palletsprojects.com/en/8.1.x/shell-completion/#enabling-completion
+
 ## Getting started
 
 Once installed, make sure your venv is activated, then try:
@@ -63,6 +76,7 @@ Once installed, make sure your venv is activated, then try:
     $ axpert -h
 
 To see all CLI options.
+
 
 ## Axpert Protocol
 

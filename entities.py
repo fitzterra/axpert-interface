@@ -3,6 +3,8 @@ This module defines the various entities that make up all the parameters and
 settings for the inverter.
 """
 
+import re
+
 
 def parseDeviceFlags(flags):
     """
@@ -105,6 +107,10 @@ def parseWarnState(stat):
     return dict(zip(state_k, state_v))
 
 
+# Some pre-compiled regexes for validation, etc. These are the search function
+# for the regexes, so use them like IS_VOLTAGE('12.3') for example.
+IS_VOLTAGE = re.compile(r"^\d{1,2}\.\d$").search
+
 # Device mode lookup table for QMOD
 DEVICE_MODE = {
     "P": "Power on mode",
@@ -168,19 +174,22 @@ ENTITIES = {
         "unit": "V",
     },
     "bat_und_v": {
-        "desc": "Battery under voltage",
+        "desc": "Battery under voltage (low DC cut-off?)",
         "fmt": float,
         "unit": "V",
+        "prog": "??",
     },
     "bat_bulk_v": {
-        "desc": "Battery bulk voltage",
+        "desc": "Battery bulk charging voltage",
         "fmt": float,
         "unit": "V",
+        "prog": "26",
     },
     "bat_flt_v": {
-        "desc": "Battery float voltage",
+        "desc": "Battery float charging voltage",
         "fmt": float,
         "unit": "V",
+        "prog": "27",
     },
     "bat_type": {
         "desc": "Battery type",
@@ -213,7 +222,7 @@ ENTITIES = {
     },
     "chg_src_pri": {
         "desc": "Charge source priority",
-        "fmt": lambda v: ("Utility 1st", "Solar 1st", "Sol+Util", "SOl Only")[int(v)],
+        "fmt": lambda v: ("Utility 1st", "Solar 1st", "Sol+Util", "Sol Only")[int(v)],
         "unit": None,
         "prog": "16",
     },
@@ -471,9 +480,10 @@ ENTITIES = {
     },
 }
 
-
 # These are all the queries supported currently. The format is a dict with keys
-# being the query acronym and values one of:
+# being the query acronym and values a dict with 'def' and 'info' keys. The
+# 'info' key is used to show information about what the query does. The 'def'
+# key value can be one of:
 #   * A list of entity keys making up the result from the query. This list must
 #     match the values as returned by the query when sent to the inverter, in
 #     the same order as returned.
@@ -487,93 +497,386 @@ ENTITIES = {
 # The keys in this dict is also used as the choices list for the CLI -q
 # argument
 QUERIES = {
-    "QPI": ["dev_prot_id"],
-    "QID": ["dev_serial"],
-    "QVFW": ["fw_ver"],
-    "QVFW2": ["fw2_ver"],
-    "QPIRI": [
-        "grid_rate_v",
-        "grid_rate_c",
-        "ac_out_rate_v",
-        "ac_out_rate_f",
-        "ac_out_rate_c",
-        "ac_out_rate_apar_p",
-        "ac_out_rate_act_p",
-        "bat_rate_v",
-        "bat_rchr_v",
-        "bat_und_v",
-        "bat_bulk_v",
-        "bat_flt_v",
-        "bat_type",
-        "ac_chg_max_c",
-        "chg_max_c",
-        "ac_in_range_v",
-        "out_src_pri",
-        "chg_src_pri",
-        "para_max_num",
-        "inv_type",
-        "topology",
-        "out_mode",
-        "bat_re_dchg_v",
-        "pv_para_ok",
-        "pv_p_bal",
-    ],
-    "QFLAG": parseDeviceFlags,
-    "QPIGS": [
-        "grid_v",
-        "grid_f",
-        "ac_out_v",
-        "ac_out_f",
-        "ac_out_apar_p",
-        "ac_out_act_p",
-        "out_load_perc",
-        "bus_v",
-        "bat_v",
-        "bat_chg_c",
-        "bat_cap",
-        "inv_temp",
-        "pv_bat_cur",
-        "pv_in_v",
-        "bat_v_scc",
-        "bat_dchg_c",
-        "dev_stat",
-        "unkwn_1",
-        "unkwn_2",
-        "unkwn_3",
-        "unkwn_4",
-    ],
-    "QMOD": ["dev_mode"],
-    "QPIWS": parseWarnState,
-    "QDI": [
-        "ac_out_v",
-        "ac_out_f",
-        "ac_chg_max_c",
-        "bat_und_v",
-        "chg_float_v",
-        "chg_bulk_v",
-        "bat_rchr_v",
-        "chg_max_c",
-        "ac_in_range_v",
-        "out_src_pri",
-        "chg_src_pri",
-        "bat_type",
-        "alarm_en",
-        "pwr_save_en",
-        "ovld_rstr_en",
-        "ovr_temp_rstr_en",
-        "lcd_blght_en",
-        "alrm_pri_src_int_en",
-        "flt_code_rec_en",
-        "ovrl_bypass_en",
-        "lcd_rtn_en",
-        "out_mode",
-        "bat_re_dchg_v",
-        "pv_para_ok",
-        "pv_p_bal",
-    ],
-    "QMCHGCR": str,
-    "QMUCHGCR": str,
-    "QBOOT": str,
-    "QOPM": str,
-    "QPGS0": str,
+    "QPI": {"def": ["dev_prot_id"], "info": "Get device protocol ID."},
+    "QID": {"def": ["dev_serial"], "info": "Get device serial number."},
+    "QVFW": {"def": ["fw_ver"], "info": "Get main firmware version."},
+    "QVFW2": {"def": ["fw2_ver"], "info": "Get secondary firmware version."},
+    "QPIRI": {
+        "def": [
+            "grid_rate_v",
+            "grid_rate_c",
+            "ac_out_rate_v",
+            "ac_out_rate_f",
+            "ac_out_rate_c",
+            "ac_out_rate_apar_p",
+            "ac_out_rate_act_p",
+            "bat_rate_v",
+            "bat_rchr_v",
+            "bat_und_v",
+            "bat_bulk_v",
+            "bat_flt_v",
+            "bat_type",
+            "ac_chg_max_c",
+            "chg_max_c",
+            "ac_in_range_v",
+            "out_src_pri",
+            "chg_src_pri",
+            "para_max_num",
+            "inv_type",
+            "topology",
+            "out_mode",
+            "bat_re_dchg_v",
+            "pv_para_ok",
+            "pv_p_bal",
+        ],
+        "info": "Rate and current settings configuration.",
+    },
+    "QFLAG": {"def": parseDeviceFlags, "info": "Report various device status flags."},
+    "QPIGS": {
+        "def": [
+            "grid_v",
+            "grid_f",
+            "ac_out_v",
+            "ac_out_f",
+            "ac_out_apar_p",
+            "ac_out_act_p",
+            "out_load_perc",
+            "bus_v",
+            "bat_v",
+            "bat_chg_c",
+            "bat_cap",
+            "inv_temp",
+            "pv_bat_cur",
+            "pv_in_v",
+            "bat_v_scc",
+            "bat_dchg_c",
+            "dev_stat",
+            "unkwn_1",
+            "unkwn_2",
+            "unkwn_3",
+            "unkwn_4",
+        ],
+        "info": "Show current general status information.",
+    },
+    "QMOD": {"def": ["dev_mode"], "info": "Show the current device mode."},
+    "QPIWS": {"def": parseWarnState, "info": "Show all warning statuses."},
+    "QDI": {
+        "def": [
+            "ac_out_v",
+            "ac_out_f",
+            "ac_chg_max_c",
+            "bat_und_v",
+            "chg_float_v",
+            "chg_bulk_v",
+            "bat_rchr_v",
+            "chg_max_c",
+            "ac_in_range_v",
+            "out_src_pri",
+            "chg_src_pri",
+            "bat_type",
+            "alarm_en",
+            "pwr_save_en",
+            "ovld_rstr_en",
+            "ovr_temp_rstr_en",
+            "lcd_blght_en",
+            "alrm_pri_src_int_en",
+            "flt_code_rec_en",
+            "ovrl_bypass_en",
+            "lcd_rtn_en",
+            "out_mode",
+            "bat_re_dchg_v",
+            "pv_para_ok",
+            "pv_p_bal",
+        ],
+        "info": "Show default settings.",
+    },
+    "QMCHGCR": {
+        "def": str,
+        "info": "Show battery charging currents that may be set.",
+    },
+    "QMUCHGCR": {
+        "def": str,
+        "info": "Show max utility charging currents that may be set.",
+    },
+    "QBOOT": {"def": str, "info": "Check if DSP bootstrap is supported."},
+    # "QOPM": {"def": str, "info": ""},
+    # "QPGS0": {"def": str, "info": ""},
+}
+
+
+def onOff(val):
+    """
+    Converts the val argument to a True or False value.
+
+    The following values for val will result in a True return (string values
+    will be lower cased):
+
+        "1", "on", "true", True
+
+    These will result in False values:
+
+        "0", "off", "false", 0, False
+
+    Args:
+        val (any): The input to convert.
+
+    Raises:
+        ValueError if val is not one of the allowed values
+
+    Returns:
+        True or False
+    """
+    # Always cast val to a string and then lowercase
+    val = str(val).lower()
+
+    if val in ["1", "on", "true", True]:
+        return True
+
+    if val in ["0", "off", "false", False]:
+        return False
+
+    raise ValueError(f"Invalid on/off value: {val}")
+
+
+# This dictionary defines all available commands, any optional arguments a
+# command takes, how to convert these arguments if needed and how to generate
+# the command mnemonic to send using the args.
+# The low level protocol commands are quite obscure and for that reason we will
+# create a set of human readable commands to set various options and settings.
+#
+# The dict below will have as keys these human version of these commands as the
+# keys.
+# The value for each key is then another dictionary defining the command info and
+# requirements. This dict has these keys:
+# 'info': An info message giving details of the purpose of the command and any
+#         arguments it takes.
+# 'args': A list of functions for each of the required arguments. If the number
+#         of args read from the command line does not match the number of
+#         entries in this list, it will be an error.
+#         If the counts match, then each function in this list will be used to
+#         convert the corresponding command line args to a new arg value. If
+#         the function is None, no conversion is done.
+#         If the resultant args list is only one element, it will be popped out
+#         of the list and be handled as a singe value arg.
+# 'validate':Optional. As for 'cmd' this is a list of validation functions to
+#            call for each arg, AFTER the arg conversions has been done. If any
+#            of these are None, validation is ignored. This list must match the
+#            number of args expected.
+# 'cmd':  This can be an actual protocol command mnemonic, or a callable. If a
+#         callable, it will be called with passing in the args converted before
+#         as the only function argument. This will be a list if there were
+#         multiple args, or a single arg if there was only one arg given.
+#         The purpose here to generate the final inverter command to send to
+#         perform the action required.
+# 'prog': Optionally the program number as per the Mecer SOL-I-AX-3VP manual.
+# 'disabled': Optional. If defined with a value of True, the full command and
+#             arg processing will be done, but just before sending to the
+#             inverter, will show a message that the command is disabled, and
+#             exit with status code 1.
+COMMANDS = {
+    "ALARM": {
+        "info": "Enable or disable the buzzer alarm. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEa' if arg is True, else 'PDa'
+        "cmd": lambda a: f"P{'E' if a else 'D'}a",
+        "prog": "18",
+    },
+    "OVL_BP": {
+        "info": "Enable or disable overload bypass. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEb' if arg is True, else 'PDb'
+        "cmd": lambda a: f"P{'E' if a else 'D'}b",
+        "prog": "23",
+    },
+    "PWR_SV": {
+        "info": "Enable or disable power saving mode. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEj' if arg is True, else 'PDj'
+        "cmd": lambda a: f"P{'E' if a else 'D'}b",
+    },
+    "LCD_HM": {
+        "info": "Enable or disable LCD returning home after 1 min. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEk' if arg is True, else 'PDk'
+        "cmd": lambda a: f"P{'E' if a else 'D'}k",
+        "prog": "19",
+    },
+    "OL_RST": {
+        "info": "Enable or disable overload restart. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEu' if arg is True, else 'PDu'
+        "cmd": lambda a: f"P{'E' if a else 'D'}u",
+        "prog": "06",
+    },
+    "OT_RST": {
+        "info": "Enable or disable over temperature restart. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEv' if arg is True, else 'PDv'
+        "cmd": lambda a: f"P{'E' if a else 'D'}v",
+        "prog": "07",
+    },
+    "BL": {
+        "info": "Backlight control. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEx' if arg is True, else 'PDx'
+        "cmd": lambda a: f"P{'E' if a else 'D'}x",
+        "prog": "20",
+    },
+    "AL_PSRC": {
+        "info": "Enable or disable alarm on primary source interrupt. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEy' if arg is True, else 'PDy'
+        "cmd": lambda a: f"P{'E' if a else 'D'}y",
+        "prog": "22",
+    },
+    "FC_REC": {
+        "info": "Enable or disable fault code record. ARG: [on,1]/[off,0]",
+        # Converts the arg to a True/False value
+        "args": [onOff],
+        # Receives the converted arg (True/False) and builds the inverter
+        # command as 'PEz' if arg is True, else 'PDz'
+        "cmd": lambda a: f"P{'E' if a else 'D'}z",
+        "prog": "25",
+    },
+    "FACT_RST": {
+        "info": "Factory reset to all default values. CAREFUL!!",
+        "args": [],
+        # This is a command without args.
+        "cmd": "PF",
+        # Disabled for now
+        "disabled": True,
+    },
+    "OUT_FRQ": {
+        "info": "Set the frequency to 50Hz or 60Hz. ARG: 50/60",
+        # Converts the arg to a True/False value
+        "args": [None],
+        "validate": [lambda v: v in ["50", "60"]],
+        # Receives the converted arg and builds the inverter command as 'Fnn'
+        "cmd": lambda a: f"F{a}",
+        # Disabled for now
+        "disabled": True,
+    },
+    "OUT_PRI": {
+        "info": "Set device output priority. ARG: utility_1st | solar_1st | SBU",
+        # Conversion is the get() method for this dict.
+        "args": [{"utility_1st": "00", "solar_1st": "01", "SBU": "02"}.get],
+        "validate": [lambda v: v in ["00", "01", "02"]],
+        # Receives the converted arg and builds the inverter command as 'POPnn'
+        "cmd": lambda a: f"POP{a}",
+        # Disabled for now
+        "disabled": True,
+        "prog": "01",
+    },
+    "BAT_RCH": {
+        "info": "Set battery recharge voltage. ARG: ???",
+        # Not sure if we can have any value here , or only specific values?????
+        "args": [],
+        # "validate": [],
+        # Receives the converted arg and builds the inverter
+        # command as 'PBCVnn.n' ???????????????????????????
+        "cmd": lambda a: f"PBCV{a}",
+        # Disabled for now
+        "disabled": True,
+    },
+    "BAT_RDCH": {
+        "info": "Set battery re-discharge voltage. ARG: ???",
+        # Not sure if we can have any value here , or only specific values?????
+        "args": [],
+        # "validate": [],
+        # Receives the converted arg and builds the inverter
+        # command as 'PBDVnn.n' ???????????????????????????
+        "cmd": lambda a: f"PBDV{a}",
+        # Disabled for now
+        "disabled": True,
+    },
+    "CHG_PRI": {
+        "info": "Set device charge priority. ARG: utility_1st | solar_1st | sol_util | sol_only",
+        # Conversion is the get() method for this dict, returning None if the
+        # arg is not in the dict below
+        "args": [
+            {
+                "utility_1st": "00",
+                "solar_1st": "01",
+                "sol_util": "02",
+                "sol_only": "03",
+            }.get
+        ],
+        "validate": [lambda v: v in ["00", "01", "02", "03"]],
+        # Receives the converted arg and builds the inverter command as 'PCPnn'
+        "cmd": lambda a: f"PCP{a}",
+        "prog": "16",
+        # Disabled for now
+        "disabled": True,
+    },
+    "AC_IN_V": {
+        "info": "Set AC input voltage range. ARG: appliance | ups",
+        # Conversion is the get() method for this dict, returning None if the
+        # arg is not in the dict below
+        "args": [
+            {
+                "appliance": "00",
+                "ups": "01",
+            }.get
+        ],
+        "validate": [lambda v: v in ["00", "01"]],
+        # Receives the converted arg and builds the inverter command as 'PGRnn'
+        "cmd": lambda a: f"PGR{a}",
+        "prog": "03",
+        # Disabled for now
+        "disabled": True,
+    },
+    "BAT_TYPE": {
+        "info": "Set battery type. ARG: AGM | flooded | user",
+        # Conversion is the get() method for this dict, returning None if the
+        # arg is not in the dict below
+        "args": [
+            {
+                "AGM": "00",
+                "flooded": "01",
+                "user": "02",
+            }.get
+        ],
+        "validate": [lambda v: v in ["00", "01", "02"]],
+        # Receives the converted arg and builds the inverter command as 'PBTnn'
+        "cmd": lambda a: f"PBT{a}",
+        "prog": "05",
+        # Disabled for now
+        "disabled": True,
+    },
+    "BAT_BCH": {
+        "info": "Set battery bulk charge (c.v.) voltage. ARG: nn.n",
+        # No conversion. Validation will catch most errors
+        "args": [None],
+        "validate": [IS_VOLTAGE],
+        # Receives the converted arg and builds the inverter
+        # command as 'PCVVnn.n'
+        "cmd": lambda a: f"PCVV{a}",
+        "prog": "26",
+    },
+    "BAT_FCH": {
+        "info": "Set battery float charge voltage. ARG: nn.n",
+        # No conversion. Validation will catch most errors
+        "args": [None],
+        "validate": [IS_VOLTAGE],
+        # Receives the converted arg and builds the inverter
+        # command as 'PBFTnn.n'
+        "cmd": lambda a: f"PBFT{a}",
+        "prog": "27",
+    },
 }
