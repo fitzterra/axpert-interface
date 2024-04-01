@@ -391,7 +391,8 @@ def formatOutput(dat, fmt, pretty):
         are expected to exists in entities.ENTITIES.
         fmt (str): Currently one of:
             * 'raw': This indicates no formatting
-            * 'json': Return data as a JSON string
+            * 'json': Return data as a compact JSON string unless pretty is
+                True
             * 'table': Returns the dat as a pretty formatted table.
         pretty (bool): If True and the format option supports it, the output
             will be pretty formatted.
@@ -407,8 +408,17 @@ def formatOutput(dat, fmt, pretty):
         return pformat(dat)
 
     if fmt == "json":
-        indent = 2 if pretty else None
-        return json.dumps(dat, indent=indent)
+        if not pretty:
+            # Most compact output if not pretty
+            separators = (",", ":")
+            indent = None
+        else:
+            # If pretty we only need to set indent, and leave separators to
+            # None for it to use the default separators.
+            separators = None
+            indent = 2
+
+        return json.dumps(dat, separators=separators, indent=indent)
 
     if fmt == "table":
         table = PrettyTable()
