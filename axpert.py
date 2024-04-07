@@ -13,6 +13,7 @@ import logging
 from binascii import unhexlify
 from pprint import pformat
 import json
+import tomllib
 
 import crcmod
 import click
@@ -31,6 +32,94 @@ DEFAULT_DEV = "/dev/hidAxpert"
 # A constant for how long we wait (in seconds) for sending/receiving from the
 # device to complete before we fail with a timeout
 DEVICE_TIMEOUT = 10
+
+# This is the default file name we use for the config file
+CONFIG_FILE_NAME = "axpert.toml"
+# These are the different locations we could have system or user level config
+# files. Each of these locations will be examined to see if it is a valid
+# config file, and if so, it's config info will be read and applied.
+# If the config file exists, but is invalid, an error will be raised.
+# NOTE: The config files in this list are read and applied in order, meaning
+#       that the later config will overwrite earlier ones. If a config file is
+#       supplied on the command line, it will take precedence and the ones in
+#       this list will be ignored. Specific command line args will also
+#       override any values from these config files.
+# NOTE2: Shell type tilde (~) expansion will be attempted if a file name
+#        contains one.
+CONFIG_FILE_PATHS = [
+    f"/etc/{CONFIG_FILE_NAME}",
+    f"~/.{CONFIG_FILE_NAME}",
+]
+
+
+def configure(ctx, param, filename=None):
+    """
+    Sets up default config options from an optional config file.
+
+    See for more info: https://jwodder.github.io/kbits/posts/click-config/
+
+    The config file should be a TOML format (https://toml.io). Any config
+    options for the main cli() args should be at the top level, while the
+    sub command should have their arguments inside their own table such as
+    `[query]` for example.
+
+    Sample axpert.toml:
+
+        # Config file for Axpert interface
+
+        # These are main level config settings that applies to all sub commands
+        #device = '/dev/foo'
+        logfile = '-'
+        #loglevel = 'debug'
+
+        # This is for the query sub command
+        [query]
+        mqtt = true
+        mqtt_host = 'goomba.foo'
+        mqtt_topic = 'a/new/topic'
+
+    """
+    # We may need the `param` arg later, so @pylint: disable=unused-argument
+
+    # Did we get a config file name?
+    if filename:
+        # Yes, and in this case that is the only file to consider.
+        conf_files = [filename]
+    else:
+        # No, so we will consider all possible config files.
+        conf_files = CONFIG_FILE_PATHS
+
+    # Will hold the config options read from the config files.
+    config = {}
+
+    for cfile in conf_files:
+        try:
+            # We will expand a ~ in the file path to the user's home dir
+            cfile = os.path.expanduser(cfile)
+            with open(cfile, "rb") as f:
+                # This update is only on the top level. It will change a
+                # `device` entry on the top level, but for the `query` or
+                # `command` table definitions in the toml file, these will be
+                # completely overridden, and not just updating the sub entires
+                # within these tables.
+                config.update(tomllib.load(f))
+        except FileNotFoundError:
+            # If filename was given, then this is an expected config file, and
+            # we do not allow failure
+            if filename:
+                logger.error("Expected config file '%s' not found. Aborting.", filename)
+                sys.exit(1)
+            # For the others, we can go on to the next file if any
+            continue
+        except Exception:
+            logger.exception("Error opening or parsing config file: %s", cfile)
+            sys.exit(1)
+
+    # Set the click context default_map with the default options. These may now
+    # be overridden by command line args.
+    # TODO: Find a way to have these defaults show up in the --help option as
+    # defaults for the different args.
+    ctx.default_map = config
 
 
 class Axpert:
@@ -517,7 +606,18 @@ def shellCompleteHelper(ctx, param, incomplete):
 
 
 @click.help_option("-h", "--help")
-@click.group()
+@click.group(invoke_without_command=True)
+@click.option(
+    "-c",
+    "--config",
+    type=click.Path(dir_okay=False),
+    default=None,
+    callback=configure,
+    is_eager=True,
+    expose_value=False,
+    help="Config file for any default options.",
+    show_default=True,
+)
 @click.option(
     "-d",
     "--device",
