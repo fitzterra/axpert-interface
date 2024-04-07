@@ -752,7 +752,14 @@ def query(
                 "Either MQTT host or topic not defined in config file. Please fix and try again"
             )
             sys.exit(1)
-        logger.info("Publishing to MQTT, so forcing --no-units, JSON and --ugly.")
+        # The topic may contain '%s' which means we need to interpolate the qry
+        # arg
+        if r"%s" in mqtt_topic:
+            mqtt_topic = mqtt_topic % qry
+
+        logger.debug("Publishing to MQTT, so forcing --no-units, JSON and --ugly.")
+        logger.info("Publishing via MQTT to %s on topic '%s'", mqtt_host, mqtt_topic)
+        # These are the defaults for units and format when publishing to MQTT.
         units = pretty = False
         fmt = "json"
 
