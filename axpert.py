@@ -18,6 +18,7 @@ import tomllib
 import crcmod
 import click
 from prettytable import PrettyTable
+from paho.mqtt import publish
 
 import entities
 
@@ -687,6 +688,14 @@ def cli(ctx, device, logfile, loglevel):
     help="Some format option will allow a more readable (pretty) output. "
     "This can be switched on/off with this option.",
 )
+@click.option(
+    "-q/-nq",
+    "--mqtt/--no-mqtt",
+    default=False,
+    show_default=True,
+    help="Publish query response as JSON to MQTT server as configured in "
+    "config file. Force --no-units, JSON and --ugly",
+)
 @click.pass_context
 def query(
     ctx,
@@ -694,12 +703,17 @@ def query(
     units,
     fmt,
     pretty,
+    mqtt,
 ):
     """
     Issue the QRY query request to the inverter, returning the query result.
 
     To see a list of available QRY arguments, use `list` as QRY argument
     """
+    # pylint: disable=too-many-arguments
+
+    # TODO: add some logging here
+
     # Show available queries if required
     if qry.lower() == "list":
         print("\nAvailable queries:")
@@ -719,10 +733,45 @@ def query(
         )
         sys.exit(1)
 
+    # Send to MQTT?
+    if mqtt:
+        # There are no options to set the MQTT host, etc from the command line.
+        # These are expected to be in a toml config file in the [query] table,
+        # which we will then get from the ctx.default_map.
+        # If no config file was given however, then ctx.default_map may be
+        # None. To make things easier for the fetching of the info below, we
+        # will set default_map to an empty dict if it is None so the
+        # `.get(...)` below does not fail prematurely.
+        if ctx.default_map is None:
+            ctx.default_map = {}
+        # Now fetch the values.
+        mqtt_host = ctx.default_map.get("mqtt_host", None)
+        mqtt_topic = ctx.default_map.get("mqtt_topic", None)
+        if not all((mqtt_host, mqtt_topic)):
+            logger.error(
+                "Either MQTT host or topic not defined in config file. Please fix and try again"
+            )
+            sys.exit(1)
+        logger.info("Publishing to MQTT, so forcing --no-units, JSON and --ugly.")
+        units = pretty = False
+        fmt = "json"
+
     # Instantiate an Axpert instance and send the query
     device = ctx.obj["device"]
     with Axpert(device=device) as inv:
-        print(formatOutput(inv.query(qry, units), fmt, pretty))
+        res = formatOutput(inv.query(qry, units), fmt, pretty)
+
+    if not mqtt:
+        print(res)
+        return
+
+    logger.debug("MQTT: host=%s, topic=%s", mqtt_host, mqtt_topic)
+    try:
+        publish.single(mqtt_topic, res, hostname=mqtt_host)
+        logger.info("MQTT published %s: %s", mqtt_topic, res)
+    except Exception:
+        logger.exception("Error publishing to MQTT host: %s", mqtt_host)
+        sys.exit(1)
 
 
 @cli.command()
@@ -738,6 +787,9 @@ def command(ctx, cmd, arg):
     Some commands takes additional arguments, and these should be supplied as
     ARG to the CMD.
     """
+    # We may refactor later, but for now
+    # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+
     logger.debug("Processing command '%s' with arg '%s'", cmd, arg)
 
     # Show a list of commands?
