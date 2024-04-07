@@ -1,0 +1,15 @@
+# Sample config file
+
+# These are main level config settings that applies to all sub commands
+#device = '/dev/hidAxpert'
+#logfile = '-'
+#loglevel = 'debug'
+
+# This is for the query sub command
+[query]
+#mqtt = true
+mqtt_host = 'mqtt.host.com'
+# Any %s in the topic will be replaces by the actual query request name sent to
+# the inverter
+mqtt_topic = 'a/new/topic/%s'
+
