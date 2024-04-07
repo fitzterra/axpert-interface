@@ -13,7 +13,10 @@
 		2. [Zsh completion](#zsh-completion)
 		3. [Fish completion](#fish-completion)
 5. [Getting started](#getting-started)
-6. [Axpert Protocol](#axpert-protocol)
+6. [Configuration](#configuration)
+7. [Query request](#query-request)
+8. [Command request](#command-request)
+9. [Axpert Protocol](#axpert-protocol)
 
 ## Introduction
 
@@ -122,8 +125,121 @@ Once installed, make sure your venv is activated, then try:
 
     $ axpert -h
 
-To see all CLI options.
+which will look something like:
 
+    Usage: axpert [OPTIONS] COMMAND [ARGS]...
+
+      Axpert Inverter CLI interface.
+
+    Options:
+      -c, --config FILE               Config file for any default options.
+      -d, --device TEXT               The inverter HID device to connect to.
+                                      [default: /dev/hidAxpert]
+      -l, --logfile TEXT              Log file path to enable logging. Use - for
+                                      stdout or _ for stderr. Disabled by default
+      -L, --loglevel [critical|fatal|error|warn|warning|info|debug]
+                                      Set the loglevel.  [default: info]
+      -h, --help                      Show this message and exit.
+
+    Commands:
+      command  Issue the CMD command to the inverter and indicates success or...
+      query    Issue the QRY query request to the inverter, returning the...
+
+To see the [config](#configuration) section below for more details on options.
+
+Each command takes it's own `-h` or `--help` arg to get help for that command:
+
+    $ axpert query --help
+
+will print this:
+
+    Usage: axpert.py query [OPTIONS] QRY
+
+      Issue the QRY query request to the inverter, returning the query result.
+
+      To see a list of available QRY arguments, use `list` as QRY argument
+
+    Options:
+      -h, --help                     Show this message and exit.
+      -u, --units / -nu, --no-units  Add units to any query values that have units
+                                     defined.  [default: nu]
+      -f, --format [raw|json|table]  Set the output format. The raw option is
+                                     standard Python object output
+      -P, --pretty / -U, --ugly      Some format option will allow a more readable
+                                     (pretty) output. This can be switched on/off
+                                     with this option.  [default: U]
+      -q, --mqtt / -nq, --no-mqtt    Publish query response as JSON to MQTT server
+                                     as configured in config file. Force --no-
+                                     units, JSON and --ugly  [default: nq]
+
+
+## Configuration
+
+Most config option can be supplied as command line arguments, but there are
+some that needs to be supplied via a config file.
+
+A config file will be in the [TOML] format which is a very simple config file
+format that is very close the INI file format.
+
+Configuration for the app, both from the command line as well as from a config
+file, consists of global config options that affect the main app and all sub
+commands, and then the sub command specific config.
+
+The global config options are given on the command line before the sub command
+name. In the config file, these goes at the top level. For example:
+
+```toml
+# This an axpert config file.
+# Global options are at the top level.
+
+loglevel = 'debug'
+device = '/dev/hidraw1`
+```
+
+Sub command configs are in their own __table__ or section. For the `query`
+command for example, we can add the MQTT options that can not be supplied on
+the command line.
+
+```toml
+# This an axpert config file.
+# Global options are at the top level.
+
+loglevel = 'debug'
+device = '/dev/hidraw1`
+
+[query]
+mqtt_server = 'my.mqtt.com'
+mqtt_topic = 'my/axpert/topic/%s'
+```
+
+Note that the `mqtt_server` and `mqtt_topic` options are not available on the
+command line so they can only supplied in a config file.
+
+The config file can specified using the `--config` or `-c` global command line
+option. When no config file is specified, then the following default config
+files will be be tried:
+
+* `/etc/axpert.toml` - this is useful for global server defauly config
+* `~/.axpert.toml` - this is useful for local user default config
+
+If both files are present, the later will overwrite options from the first.
+
+For both the default config files or one given with the `--config` or `-c`
+command line argument, any direct command line args will overwrite any options
+specified in the config files.
+
+## Query request
+
+This is used to get information from the inverter such as current status,
+default config, etc.
+
+TBCompleted
+
+## Command request
+
+This is to send a change or update command to the inverter.
+
+TBCompleted
 
 ## Axpert Protocol
 
@@ -134,3 +250,4 @@ The comms protocol is described to some fashion in
 <!-- links -->
 [click]: https://click.palletsprojects.com/en/latest/
 [click shell completion]: https://click.palletsprojects.com/en/latest/shell-completion/#enabling-completion
+[TOML]: https://toml.io
