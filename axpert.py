@@ -85,9 +85,11 @@ def configure(ctx, param, filename=None):
     if filename:
         # Yes, and in this case that is the only file to consider.
         conf_files = [filename]
+        logger.info("Only considering %s file for config.", filename)
     else:
         # No, so we will consider all possible config files.
         conf_files = CONFIG_FILE_PATHS
+        logger.info("Considering these files for config: %s", conf_files)
 
     # Will hold the config options read from the config files.
     config = {}
