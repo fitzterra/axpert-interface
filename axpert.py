@@ -783,6 +783,25 @@ def query(
 
 @cli.command()
 @click.help_option("-h", "--help")
+@click.pass_context
+def version(ctx):
+    """
+    Shows the current version number and then exits.
+    """
+    # pylint: disable=unused-argument,import-outside-toplevel
+
+    # This makes use of Python 3.8+ importlib.metadata function to get the
+    # version number from setup.py.
+    # See the 5th option here:
+    # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
+
+    from importlib import metadata
+
+    print(f"\nVersion: v{metadata.version('axpert-interface')}\n")
+
+
+@cli.command()
+@click.help_option("-h", "--help")
 @click.argument("cmd", shell_complete=shellCompleteHelper)
 @click.argument("arg", required=False, nargs=-1)
 @click.pass_context
