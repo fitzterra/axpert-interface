@@ -797,7 +797,16 @@ def version(ctx):
 
     from importlib import metadata
 
-    print(f"\nVersion: v{metadata.version('axpert-interface')}\n")
+    try:
+        ver = metadata.version("axpert-interface")
+    except metadata.PackageNotFoundError:
+        # This error means the axpert-interface package is not known, so we
+        # assume we are in a development version.
+        # NOTE that this will also be the case if the package name is changed,
+        # so be careful about that.
+        ver = "_development_"
+
+    print(f"\nVersion: v{ver}\n")
 
 
 @cli.command()
