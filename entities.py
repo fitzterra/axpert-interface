@@ -430,10 +430,23 @@ ENTITIES = {
     "bat_dchg_c": {"desc": "Battery discharge current", "fmt": int, "unit": "A"},
     "dev_stat": {
         "desc": "Device status",
-        # TODO: This is string that needs to be parsed
-        "fmt": str,
+        # This will set the value of this to a dictionary as returned from
+        # the parseDeviceStatus function.
+        "fmt": parseDeviceStatus,
         "unit": None,
     },
+    # The next 8 entities are the 8-bit dev_stat entity above unpacked into the
+    # definition for each bit for a flattened response structure (the -F arg to
+    # query).
+    "dev_stat.sbu_pri": {"desc": "Has SBU priority", "fmt": bool, "unit": None},
+    "dev_stat.cfg_chg": {"desc": "Config changed", "fmt": bool, "unit": None},
+    "dev_stat.fw_chg": {"desc": "SCC firmware changed", "fmt": bool, "unit": None},
+    "dev_stat.load_on": {"desc": "Load on", "fmt": bool, "unit": None},
+    "dev_stat.bat_stdy_v": {"desc": "Bat voltage to steady", "fmt": bool, "unit": None},
+    "dev_stat.chg_stat": {"desc": "Is charging", "fmt": bool, "unit": None},
+    "dev_stat.chg_scc": {"desc": "SCC charging", "fmt": bool, "unit": None},
+    "dev_stat.chg_ac": {"desc": "AC charging", "fmt": bool, "unit": None},
+    # END of dev_stat bits definition
     "pv_power": {"desc": "PV output power", "fmt": int, "unit": "W"},
     # There are 3 additional values that are returned that does not seem to be
     # documented anywhere, so we add them here as unknown for now.
