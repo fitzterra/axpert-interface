@@ -382,12 +382,12 @@ ENTITIES = {
         "fmt": str,
         "unit": None,
     },
-    # There are 4 additional values that are returned that does not seem to be
+    "pv_power": {"desc": "PV output power", "fmt": int, "unit": "W"},
+    # There are 3 additional values that are returned that does not seem to be
     # documented anywhere, so we add them here as unknown for now.
     "unkwn_1": {"desc": "Unknown param 1", "fmt": str, "unit": None},
     "unkwn_2": {"desc": "Unknown param 2", "fmt": str, "unit": None},
     "unkwn_3": {"desc": "Unknown param 3", "fmt": str, "unit": None},
-    "unkwn_4": {"desc": "Unknown param 4", "fmt": str, "unit": None},
     # ==== End device status entities ====
     "dev_mode": {
         "desc": "Device mode",
@@ -558,8 +558,8 @@ QUERIES = {
             "dev_stat",
             "unkwn_1",
             "unkwn_2",
+            "pv_power",
             "unkwn_3",
-            "unkwn_4",
         ],
         "info": "Show current general status information.",
     },
