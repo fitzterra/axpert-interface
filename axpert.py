@@ -21,6 +21,7 @@ from prettytable import PrettyTable
 from paho.mqtt import publish
 
 import entities
+from lib import flattenDict
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -399,12 +400,28 @@ class Axpert:
 
         return response
 
-    def query(self, qry, add_units=True):
+    def query(self, qry, add_units=True, flatten=False):
         """
         Sends a query command to the inverter and returns the result.
 
-        ???
+        Args:
+            qry (str): One of the keys in the QUERIES definition dictionary to
+                represent an interver query to make.
+            add_units (bool): If the values for the entities in the returned
+                dict should include the unit as defined by the 'unit' key for
+                the entity in ENTITIES.
+            flatten (bool): If the resultant dict should be flattened or not
+                for nested dict responses.
+
+        Return:
+            A dictionary with keys representing the entities defined in
+            ENTITIES for all the entities this query returns.
         """
+        # First check if we have an entity definition for this query
+        ent_def = entities.QUERIES.get(qry, None)
+        if ent_def is None:
+            raise ValueError(f"No query definition for {qry}")
+
         # Send the query and get the returned data as a bytes string. If the
         # result has multiple values, they would be separated by spaces.
         # Also immediately convert to a unicode string for easier usage from
@@ -412,11 +429,6 @@ class Axpert:
         res = self._sendRequest(qry).decode("utf-8")
         # Now split on spaces for any multi-value results
         res = res.split(" ")
-
-        # Do we have a entity definition for this query?
-        ent_def = entities.QUERIES.get(qry, None)
-        if ent_def is None:
-            raise ValueError(f"No query definition for {qry}")
 
         # The entity definition is in definition is in the 'def' key
         ent_def = ent_def["def"]
@@ -446,7 +458,8 @@ class Axpert:
         except Exception as exc:
             raise RuntimeError(f"Error formatting entity {k}") from exc
 
-        return res
+        # Return the result, possibly flattened depending on the flatten arg
+        return flattenDict(res) if flatten else res
 
     def command(self, cmd):
         """
@@ -681,6 +694,15 @@ def cli(ctx, device, logfile, loglevel):
     help="Set the output format. The raw option is standard Python object output",
 )
 @click.option(
+    "-F/-N",
+    "--flat/--nested",
+    "flatten",
+    default=False,
+    show_default=True,
+    help="Flatten (or leave nested) query results if it returns a nested result. "
+    "Will default to flattened for table format output.",
+)
+@click.option(
     "-P/-U",
     "--pretty/--ugly",
     default=False,
@@ -702,6 +724,7 @@ def query(
     qry,
     units,
     fmt,
+    flatten,
     pretty,
     mqtt,
 ):
@@ -763,10 +786,20 @@ def query(
         units = pretty = False
         fmt = "json"
 
+    # For table format, we always flatten the result
+    if fmt == "table":
+        flatten = True
+
+    # By default (as defined by the dev_stat['fmt'] value) we parse the
+    # dev_stat entity returned by the QPIGS query. This may however be turned
+    # off by a query config option: parse_dev_stat
+    if not ctx.default_map.get("parse_dev_stat", True):
+        entities.ENTITIES["dev_stat"]["fmt"] = str
+
     # Instantiate an Axpert instance and send the query
     device = ctx.obj["device"]
     with Axpert(device=device) as inv:
-        res = formatOutput(inv.query(qry, units), fmt, pretty)
+        res = formatOutput(inv.query(qry, units, flatten), fmt, pretty)
 
     if not mqtt:
         print(res)
