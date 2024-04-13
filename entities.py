@@ -75,7 +75,7 @@ def parseWarnState(stat):
     """
     Parses the warning status indicators from the QPIWS query.
 
-    This is a string of 32 0's and 1's indicating the status of the various
+    This is a string of 32 0s and 1s indicating the status of the various
     warning indicators.
 
     The warning indicators are all included in the ENTITIES dict, and can be
@@ -100,11 +100,63 @@ def parseWarnState(stat):
     #       - this should be save in Python 3 onwards.
     state_k = [k for k, e in ENTITIES.items() if "warn_ind" in e]
 
-    # Map the 1's and 0's in stat to a list of booleans
+    # Map the 1s and 0s in stat to a list of booleans
     state_v = [bool(int(v)) for v in stat]
 
     # Zip em together and returns as a dict.
     return dict(zip(state_k, state_v))
+
+
+def parseDeviceStatus(dev_stat):
+    """
+    Converts the 8 character 1s and 0s device status string returned in the
+    QPIGS query, to a dictionary with keys representing device status entities,
+    and boolean values to indicate the status.
+
+    Args:
+        dev_stat (str): This is an 8 character string of 1s and 0s
+            representing the various device statuses. For e.g.: '100011101'
+
+    Raises:
+        ValueError if dev_stat is not a string of exactly 8 characters
+        consisting of 0s and 1s only.
+
+    Returns:
+        A dict with keys 1and bool values to indicate the state for each device
+        status entity:
+            {
+                "sbu_pri": bool,    # Has SBU priority
+                "cfg_chg": bool,    # Config changed
+                "fw_chg": bool,     # SCC firmware changed
+                "load_on": bool,    # Load on
+                "bat_stdy_v": bool, # Bat voltage to steady
+                "chg_stat": bool,   # Is charging
+                "chg_scc": bool,    # SCC charging
+                "chg_ac": bool,     # AC charging
+            }
+    """
+    # Validate dev_stat
+    if not (isinstance(dev_stat, str) and len(dev_stat) == 8):
+        raise ValueError(f"The dev_stat arg is not an 8 char string: {dev_stat}")
+    if not all(c in "01" for c in dev_stat):
+        raise ValueError(f"The dev_stat arg may only have 1s and 0s: {dev_stat}")
+
+    # This is the entities representing each of the 'bits' in dev_stat, in this
+    # order
+    ds_entities = (
+        "sbu_pri",  # Has SBU priority
+        "cfg_chg",  # Config changed
+        "fw_chg",  # SCC firmware changed
+        "load_on",  # Load on
+        "bat_stdy_v",  # Bat voltage to steady
+        "chg_stat",  # Is charging
+        "chg_scc",  # SCC charging
+        "chg_ac",  # AC charging
+    )
+
+    # Zip the entities into a list of dev_stats bits converter to booleans and
+    # convert to the dict which we return
+    return dict(zip(ds_entities, [bool(int(s)) for s in dev_stat]))
 
 
 # Some pre-compiled regexes for validation, etc. These are the search function
