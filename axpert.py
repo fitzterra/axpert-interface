@@ -480,7 +480,7 @@ def formatOutput(dat, fmt, pretty):
 
     Args:
         dat (dict): This is a dictionary with entity keys and values. The keys
-        are expected to exists in entities.ENTITIES.
+            are expected to exists in entities.ENTITIES.
         fmt (str): Currently one of:
             * 'raw': This indicates no formatting
             * 'json': Return data as a compact JSON string unless pretty is
