@@ -432,6 +432,8 @@ ENTITIES = {
         "desc": "Device status",
         # This will set the value of this to a dictionary as returned from
         # the parseDeviceStatus function.
+        # NOTE: The `query.parse_dev_stat` config option can be used to switch
+        #       parsing off and make this value be returned as a string.
         "fmt": parseDeviceStatus,
         "unit": None,
     },

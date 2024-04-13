@@ -790,6 +790,12 @@ def query(
     if fmt == "table":
         flatten = True
 
+    # By default (as defined by the dev_stat['fmt'] value) we parse the
+    # dev_stat entity returned by the QPIGS query. This may however be turned
+    # off by a query config option: parse_dev_stat
+    if not ctx.default_map.get("parse_dev_stat", True):
+        entities.ENTITIES["dev_stat"]["fmt"] = str
+
     # Instantiate an Axpert instance and send the query
     device = ctx.obj["device"]
     with Axpert(device=device) as inv:
