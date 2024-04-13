@@ -93,8 +93,14 @@ def configure(ctx, param, filename=None):
         conf_files = CONFIG_FILE_PATHS
         logger.info("Considering these files for config: %s", conf_files)
 
-    # Will hold the config options read from the config files.
-    config = {}
+    # Will hold the config options read from the config files, and we also set
+    # a default config here for all sub commands in case there is no config
+    # file, or no config section for the command if a config file is available
+    config = {
+        "query": {},  # query command
+        "command": {},  # command command
+        "version": {},  # version command
+    }
 
     for cfile in conf_files:
         try:
@@ -761,13 +767,6 @@ def query(
         # There are no options to set the MQTT host, etc from the command line.
         # These are expected to be in a toml config file in the [query] table,
         # which we will then get from the ctx.default_map.
-        # If no config file was given however, then ctx.default_map may be
-        # None. To make things easier for the fetching of the info below, we
-        # will set default_map to an empty dict if it is None so the
-        # `.get(...)` below does not fail prematurely.
-        if ctx.default_map is None:
-            ctx.default_map = {}
-        # Now fetch the values.
         mqtt_host = ctx.default_map.get("mqtt_host", None)
         mqtt_topic = ctx.default_map.get("mqtt_topic", None)
         if not all((mqtt_host, mqtt_topic)):
