@@ -211,7 +211,7 @@ device = '/dev/hidraw1`
 mqtt_server = 'my.mqtt.com'
 mqtt_topic = 'my/axpert/topic/%s'
 # Don't parse the dev_stat bitstring that is returned by the QPIGS query
-parse_dev_stat = no
+parse_dev_stat = false
 ```
 
 Note that the `mqtt_server` and `mqtt_topic` options are not available on the

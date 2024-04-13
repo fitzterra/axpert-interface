@@ -16,4 +16,4 @@ mqtt_topic = 'a/new/topic/%s'
 # Should the dev_stat bit string entity, returned by the QPIGS query, be parsed
 # or left as an 8 char 1s/0s string? Default is to parse this into a nested
 # dict of device status bits.
-#parse_dev_stat = yes
+#parse_dev_stat = true
