@@ -405,6 +405,11 @@ class Axpert:
 
         ???
         """
+        # First check if we have an entity definition for this query
+        ent_def = entities.QUERIES.get(qry, None)
+        if ent_def is None:
+            raise ValueError(f"No query definition for {qry}")
+
         # Send the query and get the returned data as a bytes string. If the
         # result has multiple values, they would be separated by spaces.
         # Also immediately convert to a unicode string for easier usage from
@@ -412,11 +417,6 @@ class Axpert:
         res = self._sendRequest(qry).decode("utf-8")
         # Now split on spaces for any multi-value results
         res = res.split(" ")
-
-        # Do we have a entity definition for this query?
-        ent_def = entities.QUERIES.get(qry, None)
-        if ent_def is None:
-            raise ValueError(f"No query definition for {qry}")
 
         # The entity definition is in definition is in the 'def' key
         ent_def = ent_def["def"]
