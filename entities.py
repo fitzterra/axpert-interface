@@ -423,7 +423,12 @@ ENTITIES = {
         "fmt": int,
         "unit": "%",
     },
-    "inv_temp": {"desc": "Inverter heat sink temperature", "fmt": int, "unit": "°C"},
+    "inv_temp": {
+        "desc": "Inverter heat sink temperature",
+        # The temp seems to come in as 10ths of a degree.
+        "fmt": lambda v: int(v) / 10,
+        "unit": "°C",
+    },
     "pv_bat_cur": {"desc": "PV input current for battery", "fmt": int, "unit": "A"},
     "pv_in_v": {"desc": "PV input voltage", "fmt": float, "unit": "V"},
     "bat_v_scc": {"desc": "Battery voltage from SCC", "fmt": float, "unit": "V"},
