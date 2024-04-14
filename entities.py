@@ -175,6 +175,7 @@ DEVICE_MODE = {
 
 # TODO: Proper documentation
 ENTITIES = {
+    "time": {"desc": "Query timestamp", "fmt": None, "unit": None},
     "dev_prot_id": {"desc": "Device protocol ID", "fmt": str, "unit": None},
     "dev_serial": {"desc": "Device serial number", "fmt": str, "unit": None},
     "fw_ver": {"desc": "Main CPU firmware version", "fmt": str, "unit": None},
@@ -429,7 +430,7 @@ ENTITIES = {
         "fmt": lambda v: int(v) / 10,
         "unit": "°C",
     },
-    "pv_bat_cur": {"desc": "PV input current for battery", "fmt": int, "unit": "A"},
+    "pv_bat_c": {"desc": "PV input current for battery", "fmt": int, "unit": "A"},
     "pv_in_v": {"desc": "PV input voltage", "fmt": float, "unit": "V"},
     "bat_v_scc": {"desc": "Battery voltage from SCC", "fmt": float, "unit": "V"},
     "bat_dchg_c": {"desc": "Battery discharge current", "fmt": int, "unit": "A"},
@@ -445,14 +446,14 @@ ENTITIES = {
     # The next 8 entities are the 8-bit dev_stat entity above unpacked into the
     # definition for each bit for a flattened response structure (the -F arg to
     # query).
-    "dev_stat.sbu_pri": {"desc": "Has SBU priority", "fmt": bool, "unit": None},
-    "dev_stat.cfg_chg": {"desc": "Config changed", "fmt": bool, "unit": None},
-    "dev_stat.fw_chg": {"desc": "SCC firmware changed", "fmt": bool, "unit": None},
-    "dev_stat.load_on": {"desc": "Load on", "fmt": bool, "unit": None},
-    "dev_stat.bat_stdy_v": {"desc": "Bat voltage to steady", "fmt": bool, "unit": None},
-    "dev_stat.chg_stat": {"desc": "Is charging", "fmt": bool, "unit": None},
-    "dev_stat.chg_scc": {"desc": "SCC charging", "fmt": bool, "unit": None},
-    "dev_stat.chg_ac": {"desc": "AC charging", "fmt": bool, "unit": None},
+    "dev_stat_sbu_pri": {"desc": "Has SBU priority", "fmt": bool, "unit": None},
+    "dev_stat_cfg_chg": {"desc": "Config changed", "fmt": bool, "unit": None},
+    "dev_stat_fw_chg": {"desc": "SCC firmware changed", "fmt": bool, "unit": None},
+    "dev_stat_load_on": {"desc": "Load on", "fmt": bool, "unit": None},
+    "dev_stat_bat_stdy_v": {"desc": "Bat voltage to steady", "fmt": bool, "unit": None},
+    "dev_stat_chg_stat": {"desc": "Is charging", "fmt": bool, "unit": None},
+    "dev_stat_chg_scc": {"desc": "SCC charging", "fmt": bool, "unit": None},
+    "dev_stat_chg_ac": {"desc": "AC charging", "fmt": bool, "unit": None},
     # END of dev_stat bits definition
     "pv_power": {"desc": "PV output power", "fmt": int, "unit": "W"},
     # There are 3 additional values that are returned that does not seem to be
@@ -623,7 +624,7 @@ QUERIES = {
             "bat_chg_c",
             "bat_cap",
             "inv_temp",
-            "pv_bat_cur",
+            "pv_bat_c",
             "pv_in_v",
             "bat_v_scc",
             "bat_dchg_c",

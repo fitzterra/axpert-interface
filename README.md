@@ -14,9 +14,13 @@
 		3. [Fish completion](#fish-completion)
 5. [Getting started](#getting-started)
 6. [Configuration](#configuration)
-7. [Query request](#query-request)
-8. [Command request](#command-request)
-9. [Axpert Protocol](#axpert-protocol)
+	1. [Config file only options](#config-file-only-options)
+		1. [Global section](#global-section)
+		2. [Query section](#query-section)
+		3. [Command section](#command-section)
+2. [Query request](#query-request)
+3. [Command request](#command-request)
+4. [Axpert Protocol](#axpert-protocol)
 
 ## Introduction
 
@@ -208,13 +212,13 @@ loglevel = 'debug'
 device = '/dev/hidraw1`
 
 [query]
-mqtt_server = 'my.mqtt.com'
+mqtt_host = 'my.mqtt.com'
 mqtt_topic = 'my/axpert/topic/%s'
 # Don't parse the dev_stat bitstring that is returned by the QPIGS query
 parse_dev_stat = false
 ```
 
-Note that the `mqtt_server` and `mqtt_topic` options are not available on the
+Note that the `mqtt_host` and `mqtt_topic` options are not available on the
 command line so they can only supplied in a config file.
 
 The config file can specified using the `--config` or `-c` global command line
@@ -229,6 +233,45 @@ If both files are present, the later will overwrite options from the first.
 For both the default config files or one given with the `--config` or `-c`
 command line argument, any direct command line args will overwrite any options
 specified in the config files.
+
+### Config file only options
+
+Some config options can not be supplied from the command line and can only be
+set in the config file. These options will be described here by section or
+subcommand or TOML table section.
+
+#### Global section
+
+All global options can be supplied on the command line. See this with:
+
+    $ axpert -h
+
+#### Query section
+
+The following options can only be set in the config file:
+
+* `mqtt_host = "mqtt.host.name"`  
+  Sets the MQTT hostname when using the `--mqtt` command line option for
+  sending the query response to an MQTT server
+* `mqtt_topic = "some/topic/%s"`  
+  Sets the topic to use for publishing to an MQTT server. Any `%s` (only one
+  allowed) inthe topic will be replaced with the query name being performed.
+* `parse_dev_stat = false`  
+  The `QPIGS` query returns a 8 char bitstring consisting of 0s and 1s. Each
+  character is a flag to indicated the status of one device function or option.
+  By default this bitstring will be parsed and returned as a hierarchical array
+  result for the `dev_stat` key, indicating the status of each the device bits.  
+  If this config is set to `false`, the 8 character raw bitstring will be set
+  for the `dev_stat` key and the flags will not be parsed.  
+  **NOTE**: If the `--flatten` option is supplied, this hierarchy will be flattened
+  and each of the device status functions will become a key prefixed by
+  `dev_stat_` in the top level response.
+
+#### Command section
+
+All command options can be supplied on the command line. See with:
+
+    $ axpert command -h
 
 ## Query request
 
