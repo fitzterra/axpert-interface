@@ -446,14 +446,14 @@ ENTITIES = {
     # The next 8 entities are the 8-bit dev_stat entity above unpacked into the
     # definition for each bit for a flattened response structure (the -F arg to
     # query).
-    "dev_stat.sbu_pri": {"desc": "Has SBU priority", "fmt": bool, "unit": None},
-    "dev_stat.cfg_chg": {"desc": "Config changed", "fmt": bool, "unit": None},
-    "dev_stat.fw_chg": {"desc": "SCC firmware changed", "fmt": bool, "unit": None},
-    "dev_stat.load_on": {"desc": "Load on", "fmt": bool, "unit": None},
-    "dev_stat.bat_stdy_v": {"desc": "Bat voltage to steady", "fmt": bool, "unit": None},
-    "dev_stat.chg_stat": {"desc": "Is charging", "fmt": bool, "unit": None},
-    "dev_stat.chg_scc": {"desc": "SCC charging", "fmt": bool, "unit": None},
-    "dev_stat.chg_ac": {"desc": "AC charging", "fmt": bool, "unit": None},
+    "dev_stat_sbu_pri": {"desc": "Has SBU priority", "fmt": bool, "unit": None},
+    "dev_stat_cfg_chg": {"desc": "Config changed", "fmt": bool, "unit": None},
+    "dev_stat_fw_chg": {"desc": "SCC firmware changed", "fmt": bool, "unit": None},
+    "dev_stat_load_on": {"desc": "Load on", "fmt": bool, "unit": None},
+    "dev_stat_bat_stdy_v": {"desc": "Bat voltage to steady", "fmt": bool, "unit": None},
+    "dev_stat_chg_stat": {"desc": "Is charging", "fmt": bool, "unit": None},
+    "dev_stat_chg_scc": {"desc": "SCC charging", "fmt": bool, "unit": None},
+    "dev_stat_chg_ac": {"desc": "AC charging", "fmt": bool, "unit": None},
     # END of dev_stat bits definition
     "pv_power": {"desc": "PV output power", "fmt": int, "unit": "W"},
     # There are 3 additional values that are returned that does not seem to be
