@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name="axpert-interface",
-    version="0.3.1",
+    version="0.3.2",
     py_modules=["axpert", "entities", "lib"],
     install_requires=[
         "click>=8.1.7",
