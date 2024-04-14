@@ -14,6 +14,7 @@ from binascii import unhexlify
 from pprint import pformat
 import json
 import tomllib
+from datetime import datetime
 
 import crcmod
 import click
@@ -406,7 +407,7 @@ class Axpert:
 
         return response
 
-    def query(self, qry, add_units=True, flatten=False):
+    def query(self, qry, add_units=True, flatten=False, t_stamp=False):
         """
         Sends a query command to the inverter and returns the result.
 
@@ -418,6 +419,8 @@ class Axpert:
                 the entity in ENTITIES.
             flatten (bool): If the resultant dict should be flattened or not
                 for nested dict responses.
+            t_stamp (bool): Include a timestamp (keyname: `time`) as first
+                entry in the query result.
 
         Return:
             A dictionary with keys representing the entities defined in
@@ -436,7 +439,7 @@ class Axpert:
         # Now split on spaces for any multi-value results
         res = res.split(" ")
 
-        # The entity definition is in definition is in the 'def' key
+        # The entity definition is in the 'def' key
         ent_def = ent_def["def"]
 
         # Is the definition callable, i.e. a function?
@@ -463,6 +466,12 @@ class Axpert:
                 res[k] = val
         except Exception as exc:
             raise RuntimeError(f"Error formatting entity {k}") from exc
+
+        # Do we need to add a timestamp?
+        if t_stamp:
+            # We want the 'time' key to be the first key (aesthetics, you
+            # know), so we have to recreate the dict with 'time' as first key
+            res = {"time": datetime.now().isoformat(), **res}
 
         # Return the result, possibly flattened depending on the flatten arg
         return flattenDict(res) if flatten else res
@@ -785,6 +794,10 @@ def query(
         units = pretty = False
         fmt = "json"
 
+    # Do we add a timestamp to the result? This setting is only available from
+    # the config file.
+    t_stamp = ctx.default_map.get("time_stamp", False)
+
     # For table format, we always flatten the result
     if fmt == "table":
         flatten = True
@@ -798,12 +811,18 @@ def query(
     # Instantiate an Axpert instance and send the query
     device = ctx.obj["device"]
     with Axpert(device=device) as inv:
-        res = formatOutput(inv.query(qry, units, flatten), fmt, pretty)
+        # Send the query
+        res = inv.query(qry, units, flatten, t_stamp)
 
+        # Now format in the desired output
+        res = formatOutput(res, fmt, pretty)
+
+    # If we're publishing to MQTT, we print the output and return
     if not mqtt:
         print(res)
         return
 
+    # Publishing to MQTT
     logger.debug("MQTT: host=%s, topic=%s", mqtt_host, mqtt_topic)
     try:
         publish.single(mqtt_topic, res, hostname=mqtt_host)

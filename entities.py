@@ -175,6 +175,7 @@ DEVICE_MODE = {
 
 # TODO: Proper documentation
 ENTITIES = {
+    "time": {"desc": "Query timestamp", "fmt": None, "unit": None},
     "dev_prot_id": {"desc": "Device protocol ID", "fmt": str, "unit": None},
     "dev_serial": {"desc": "Device serial number", "fmt": str, "unit": None},
     "fw_ver": {"desc": "Main CPU firmware version", "fmt": str, "unit": None},
@@ -429,7 +430,7 @@ ENTITIES = {
         "fmt": lambda v: int(v) / 10,
         "unit": "°C",
     },
-    "pv_bat_cur": {"desc": "PV input current for battery", "fmt": int, "unit": "A"},
+    "pv_bat_c": {"desc": "PV input current for battery", "fmt": int, "unit": "A"},
     "pv_in_v": {"desc": "PV input voltage", "fmt": float, "unit": "V"},
     "bat_v_scc": {"desc": "Battery voltage from SCC", "fmt": float, "unit": "V"},
     "bat_dchg_c": {"desc": "Battery discharge current", "fmt": int, "unit": "A"},
@@ -623,7 +624,7 @@ QUERIES = {
             "bat_chg_c",
             "bat_cap",
             "inv_temp",
-            "pv_bat_cur",
+            "pv_bat_c",
             "pv_in_v",
             "bat_v_scc",
             "bat_dchg_c",
