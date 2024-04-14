@@ -474,7 +474,7 @@ class Axpert:
             res = {"time": datetime.now().isoformat(), **res}
 
         # Return the result, possibly flattened depending on the flatten arg
-        return flattenDict(res) if flatten else res
+        return flattenDict(res, sep="_") if flatten else res
 
     def command(self, cmd):
         """
