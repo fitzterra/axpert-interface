@@ -34,17 +34,17 @@ available for query and managing the inverter.
 
 For now it only supports one inverter via the USB HID interface, but should be
 fairly easy to extend for multiple or parallel inverters. I don't have such a
-setup, so I;m not able to add support for it right now, but happy for
+setup, so I'm not able to add support for it right now, but happy for
 PR's/MR's.
 
 At the moment this is assumed to run in a Linux environment, so if you're on
 Windows, YMMV - happy to get PR's/MR's that will fix things in Windows, but
-only if it makes sense an not make it more difficult to support Linux.
+only if it makes sense and not make it more difficult to support Linux.
 
 ## Requirements
 
-* Linux and probably MacOs?. Windows is not supported unless I get
-  confirmations or MR's/PRs for Windows support.
+* Linux (and probably macOS). Windows is not supported unless I get
+    confirmations or MR's/PRs for Windows support.
 * Python 3.8+
 * An Axpert or Voltronix type Inverter.
 
