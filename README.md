@@ -80,7 +80,7 @@ ATTRS{idVendor}=="0665", ATTRS{idProduct}=="5161", SUBSYSTEMS=="usb", ACTION=="a
 This will make the `/dev/hidAxpert` interface available as soon as the Inverter
 is detected on the USB bus.
 
-This file is available in the repo [here](udev/51-axpert_inverter.rules)
+This file is available in the repo [here](etc/udev/rules.d/51-axpert_inverter.rules)
 
 ### Setting up shell completion
 
