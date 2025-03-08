@@ -67,7 +67,20 @@ After activating the venv change to the repo dir and run:
 
 ### Setting up `udev` rules
 
-This is where we do that ????????????????
+Various inverters may have different USB interfaces, so making sure the
+interface shows up consistency is important. This can be done by using UDEV
+rules.
+
+For my specific Axpert/Voltronix Inverter, this is what I use (file is called
+`/etc/udev/rules.d/51-axpert_inverter.rules`):
+
+```
+ATTRS{idVendor}=="0665", ATTRS{idProduct}=="5161", SUBSYSTEMS=="usb", ACTION=="add", MODE="0666", SYMLINK+="hidAxpert"
+```
+This will make the `/dev/hidAxpert` interface available as soon as the Inverter
+is detected on the USB bus.
+
+This file is available in the repo [here](udev/51-axpert_inverter.rules)
 
 ### Setting up shell completion
 
