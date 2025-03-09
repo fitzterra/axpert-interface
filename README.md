@@ -65,6 +65,66 @@ After activating the venv change to the repo dir and run:
 
     pip install .
 
+### In an [incus] container
+
+Something like this:
+
+* I know Debian, so I use the latest Debian container
+* Then allow the Axpert (in my case) inverted USB HID device access to be
+    passed through to the container (my container name is `invertix` and I'm
+    using the UDEV rules as explained below):
+
+```
+$ incus config device add invertix hidAxpert unix-char source=/dev/hidAxpert path=/dev/hidAxpert mode=0666
+```
+
+* Now, in the container, install `direnv`, `python3-pip` and `cron`
+* Create these directories: `~/apps/axpert`
+* In `~/apps/axpert` create the `.env` file:
+
+```
+layout python3
+```
+
+* Allow direnv: `$ direnv allow`
+* Install via pip in this virtual environment:
+
+```
+$ pip install git+https://github.com/fitzterra/axpert-interface.git
+```
+
+* Create a `config.toml` file inside `~apps/axpert` and then symlink it to
+    `~.axpert.toml` This just makes it easier to maintain the file, but still
+    allow `axpert` to find it in the default place.  
+    The config file can use the `/dev/hidAxpert` device as the default device.
+* Create a symlink as follows to make the `axpert` command available in your
+    path (assuming you are running a Debian container and `~.local/bin` is
+    already in the path as per default):
+
+```
+$ mkdir -p .local/bin && cd .local/bin && ln -s ~/apps/axpert/.direnv/python-3.13.2/bin/axpert
+```
+
+* Now you can add a local `crontab` entry to query the inverter regularly and
+    publish to MQTT. Here is an example crontab:
+
+```
+MAILTO="your@mail.addy"
+PATH=/usr/local/bin:/usr/bin:/bin:/home/{yourname}/.local/bin
+
+# Runs the QPIGS query and sends it out to MQTT as defined in the config file
+* * * * * axpert -c /home/tomc/apps/axpert/config.toml query QPIGS -q -f json -F
+```
+
+* Bonus:
+    * For the above crontab, install `nullmailer` in the container and set it
+        up to use your internal or external SMTP server as smarthost
+    * Create `~/apps/axpert/logs` and setup the config file to log to this dir
+        with a name of for example `axpert.log`. Then install `logrotate` and
+        set it up to rotate logs in this dir.
+    * Set up the command line completion, to make it abit easier to run the
+        `axpert` command from anywhere in the container.
+
 ### Setting up `udev` rules
 
 Various inverters may have different USB interfaces, so making sure the
@@ -72,15 +132,15 @@ interface shows up consistency is important. This can be done by using UDEV
 rules.
 
 For my specific Axpert/Voltronix Inverter, this is what I use (file is called
-`/etc/udev/rules.d/51-axpert_inverter.rules`):
+`/etc/udev/rules.d/99-axpert_inverter.rules`):
 
 ```
-ATTRS{idVendor}=="0665", ATTRS{idProduct}=="5161", SUBSYSTEMS=="usb", ACTION=="add", MODE="0666", SYMLINK+="hidAxpert"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0665", ATTRS{idProduct}=="5161", MODE="0666", SYMLINK+="hidAxpert"
 ```
 This will make the `/dev/hidAxpert` interface available as soon as the Inverter
 is detected on the USB bus.
 
-This file is available in the repo [here](etc/udev/rules.d/51-axpert_inverter.rules)
+This file is available in the repo [here](etc/udev/rules.d/99-axpert_inverter.rules)
 
 ### Setting up shell completion
 
@@ -309,3 +369,4 @@ The comms protocol is described to some fashion in
 [click]: https://click.palletsprojects.com/en/latest/
 [click shell completion]: https://click.palletsprojects.com/en/latest/shell-completion/#enabling-completion
 [TOML]: https://toml.io
+[incus]: https://linuxcontainers.org/incus/introduction/
