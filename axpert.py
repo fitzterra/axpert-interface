@@ -122,8 +122,10 @@ def configure(ctx, param, filename=None):
                 sys.exit(1)
             # For the others, we can go on to the next file if any
             continue
-        except Exception:
-            logger.exception("Error opening or parsing config file: %s", cfile)
+        except Exception as exc:
+            logger.exception(
+                "Error opening or parsing config file [%s]: %s", cfile, exc
+            )
             sys.exit(1)
 
     # Set the click context default_map with the default options. These may now
@@ -198,6 +200,15 @@ class Axpert:
         try:
             self.port = os.open(self.device, flags)
             logger.debug("Device %s opened", self.device)
+        except OSError as exc:
+            # This is HID device not available. Log a specific error for log
+            # monitors to lock onto instead of having to parse the full trace
+            # output to figure out the time this happned for example.
+            logger.error(
+                "Unable to open HIDRAW device: %s - Error: %s", self.device, exc
+            )
+            # Re-raise to exit.
+            raise
         except Exception as exc:
             raise RuntimeError(f"Error opening hid device {self.device}") from exc
 
@@ -336,8 +347,8 @@ class Axpert:
                         logging.info("Adding b'\x00' to chunk: %s", chunk)
                     # Now write it
                     os.write(self.port, chunk)
-                except OSError:
-                    logger.exception("Error writing to device.")
+                except OSError as exc:
+                    logger.exception("Error writing to device: %s", exc)
                     # Reset the timeout alarm
                     signal.alarm(0)
                     # Close the port
@@ -363,8 +374,8 @@ class Axpert:
                     response = response.rstrip(b"\x00")
                     break
 
-        except Exception:
-            logger.exception("Error reading inverter.")
+        except Exception as exc:
+            logger.exception("Error reading inverter: %s", exc)
             return None
 
         # Reset the timeout alarm
@@ -827,8 +838,8 @@ def query(
     try:
         publish.single(mqtt_topic, res, hostname=mqtt_host)
         logger.info("MQTT published %s: %s", mqtt_topic, res)
-    except Exception:
-        logger.exception("Error publishing to MQTT host: %s", mqtt_host)
+    except Exception as exc:
+        logger.exception("Error publishing to MQTT host [%s]: %s", mqtt_host, exc)
         sys.exit(1)
 
 
