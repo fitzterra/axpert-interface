@@ -6,8 +6,10 @@ from setuptools import setup
 
 setup(
     name="axpert-interface",
-    version="0.3.3_rc1",
+    version="0.3.3_rc2",
     py_modules=["axpert", "entities", "lib"],
+    # This is an additional utilities script we want to make available
+    scripts=["tools/check_inverter_device.sh"],
     install_requires=[
         "click>=8.1.7",
         "crcmod>=1.7",
