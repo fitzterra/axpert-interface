@@ -33,10 +33,15 @@
 DEV=/dev/hidAxpert
 MIN_UPTIME=$((2*3600))  # Minimum uptime in seconds (2 hours)
 
-# Check if the device is there and is a character device, and if so, all is
-# good and we exit with success
+# Check if the device is there and is a character device.
 if [[ -c $DEV ]]; then
-    exit 0
+    # Now check if we can open it by using exec to allocate a new test file
+    # descriptor for reading from the file
+    if exec 3<"$DEV"; then
+        # All good, we can close the test fd and then exit
+        exec 3<&-
+        exit 0
+    fi
 fi
 
 # If we have not been up for longer than MIN_UPTIME, we can not reboot yet
